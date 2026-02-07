@@ -8,6 +8,29 @@ authors = [
     { name = "Axect", email = "axect.tg@proton.me" },
 ]
 requires-python = ">=3.11"
+keywords = [
+    "arxiv",
+    "papers",
+    "recommendation",
+    "research",
+    "cli",
+    "tui",
+    "machine-learning",
+    "academic",
+    "science",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Text Processing :: General",
+    "Typing :: Typed",
+]
 dependencies = [
     "typer>=0.9.0",
     "rich>=13.0.0",
@@ -24,6 +47,9 @@ axp = "arxiv_explorer.cli.main:app"
 [project.urls]
 Homepage = "https://github.com/Axect/arXiv_explorer"
 Repository = "https://github.com/Axect/arXiv_explorer"
+Documentation = "https://github.com/Axect/arXiv_explorer#readme"
+Issues = "https://github.com/Axect/arXiv_explorer/issues"
+Changelog = "https://github.com/Axect/arXiv_explorer/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]
@@ -36,4 +62,13 @@ packages = ["src/arxiv_explorer"]
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
+    "ruff>=0.8.0",
 ]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "B", "I"]
+ignore = ["E501", "B008"]

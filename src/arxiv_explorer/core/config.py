@@ -1,12 +1,14 @@
 """Configuration management."""
+
 import os
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass
 class Config:
     """Application configuration."""
+
     # Database path
     db_path: Path
 

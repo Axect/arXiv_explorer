@@ -1,8 +1,9 @@
 """Preference commands."""
+
 import typer
 
 from ..services.preference_service import PreferenceService
-from ..utils.display import print_categories, print_success, print_error, console
+from ..utils.display import console, print_categories, print_error, print_success
 
 app = typer.Typer(
     help="User preference management",

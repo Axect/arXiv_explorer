@@ -5,9 +5,9 @@ from __future__ import annotations
 from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Static, DataTable, Input, Button, Select
+from textual.widgets import Button, DataTable, Input, Select, Static
 
-from ...core.models import PreferredCategory, KeywordInterest, AIProviderType, Language
+from ...core.models import AIProviderType, KeywordInterest, Language, PreferredCategory
 from ...services.providers import get_provider
 
 
@@ -103,7 +103,9 @@ class PreferencesPane(Vertical):
                 yield DataTable(id="cat-table", cursor_type="row", zebra_stripes=True)
                 with Horizontal(classes="pref-input-row"):
                     yield Input(placeholder="Category (e.g. cs.AI)", id="cat-input")
-                    yield Input(placeholder="Priority", id="cat-priority", type="integer", value="1")
+                    yield Input(
+                        placeholder="Priority", id="cat-priority", type="integer", value="1"
+                    )
                     yield Button("+", id="cat-add", variant="primary")
                     yield Button("Del", id="cat-del", variant="error")
 
@@ -130,7 +132,7 @@ class PreferencesPane(Vertical):
                 )
                 yield Static("Lang:", classes="config-label")
                 yield Select(
-                    [(l.value, l.value) for l in Language],
+                    [(lang.value, lang.value) for lang in Language],
                     id="language-select",
                     prompt="Language",
                 )
@@ -293,7 +295,9 @@ class PreferencesPane(Vertical):
         current = self.app.bridge.settings.get_provider()
         current_lang = self.app.bridge.settings.get_language()
         status_text = self._build_status_text()
-        self.app.call_from_thread(self._apply_loaded_settings, current.value, current_lang.value, status_text)
+        self.app.call_from_thread(
+            self._apply_loaded_settings, current.value, current_lang.value, status_text
+        )
 
     def _apply_loaded_settings(self, provider_val: str, lang_val: str, status_text: str) -> None:
         with self.prevent(Select.Changed):
@@ -306,7 +310,7 @@ class PreferencesPane(Vertical):
         current = settings.get_provider()
         provider = get_provider(current)
         available = provider.is_available()
-        avail_str = "[green]available[/green]" if available else f"[red]not found[/red]"
+        avail_str = "[green]available[/green]" if available else "[red]not found[/red]"
         model = settings.get_model() or "(default)"
         lang = settings.get_language()
         return (

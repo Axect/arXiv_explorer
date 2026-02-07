@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from textual import on, work
 from textual.app import ComposeResult
-from textual.containers import Vertical, Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Static, Input, Select, Button
+from textual.widgets import Button, Input, Select, Static
 
 from ...core.models import NoteType
 
@@ -53,7 +53,9 @@ class NoteInputScreen(ModalScreen):
             return
 
         note_type_select = self.query_one("#note-type", Select)
-        note_type = note_type_select.value if note_type_select.value != Select.BLANK else NoteType.GENERAL
+        note_type = (
+            note_type_select.value if note_type_select.value != Select.BLANK else NoteType.GENERAL
+        )
         self._do_save(content, note_type)
 
     @work(thread=True, group="note-save")

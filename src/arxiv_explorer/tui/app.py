@@ -6,15 +6,14 @@ from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.widgets import Header, Footer, TabbedContent, TabPane
+from textual.widgets import Footer, Header, TabbedContent, TabPane
 
-from .workers import ServiceBridge
 from .screens.daily import DailyPane
-from .screens.search import SearchPane
-from .screens.reading_lists import ReadingListsPane
 from .screens.notes import NotesPane
 from .screens.preferences import PreferencesPane
-
+from .screens.reading_lists import ReadingListsPane
+from .screens.search import SearchPane
+from .workers import ServiceBridge
 
 CSS_PATH = Path(__file__).parent / "styles" / "app.tcss"
 

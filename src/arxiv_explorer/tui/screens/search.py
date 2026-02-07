@@ -5,11 +5,11 @@ from __future__ import annotations
 from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Static, Input, Button
+from textual.widgets import Button, Input, Static
 
-from ..widgets.paper_table import PaperTable
-from ..widgets.paper_panel import PaperPanel
 from ...core.models import RecommendedPaper
+from ..widgets.paper_panel import PaperPanel
+from ..widgets.paper_table import PaperTable
 
 
 class SearchPane(Vertical):
@@ -129,6 +129,7 @@ class SearchPane(Vertical):
     @on(PaperTable.PaperSelected)
     def _on_paper_selected(self, event: PaperTable.PaperSelected) -> None:
         from .paper_detail import PaperDetailScreen
+
         self.app.push_screen(PaperDetailScreen(event.paper))
 
     def _run_search(self, query: str) -> None:
@@ -185,9 +186,7 @@ class SearchPane(Vertical):
     @work(thread=True, group="s-interaction")
     def _do_like(self, rec: RecommendedPaper) -> None:
         self.app.bridge.preferences.mark_interesting(rec.paper.arxiv_id)
-        self.app.call_from_thread(
-            self.app.notify, f"Liked {rec.paper.arxiv_id}"
-        )
+        self.app.call_from_thread(self.app.notify, f"Liked {rec.paper.arxiv_id}")
 
     def action_dislike(self) -> None:
         rec = self._get_current()
@@ -198,9 +197,7 @@ class SearchPane(Vertical):
     @work(thread=True, group="s-interaction")
     def _do_dislike(self, rec: RecommendedPaper) -> None:
         self.app.bridge.preferences.mark_not_interesting(rec.paper.arxiv_id)
-        self.app.call_from_thread(
-            self.app.notify, f"Disliked {rec.paper.arxiv_id}"
-        )
+        self.app.call_from_thread(self.app.notify, f"Disliked {rec.paper.arxiv_id}")
 
     def action_summarize(self) -> None:
         rec = self._get_current()
@@ -245,9 +242,7 @@ class SearchPane(Vertical):
             self.app.call_from_thread(self._show_translation, rec, translation)
         else:
             self.app.call_from_thread(self._set_status, "Translation failed")
-            self.app.call_from_thread(
-                self.app.notify, "Translation failed", severity="warning"
-            )
+            self.app.call_from_thread(self.app.notify, "Translation failed", severity="warning")
 
     def _show_translation(self, rec, translation) -> None:
         panel = self.query_one("#search-panel", PaperPanel)

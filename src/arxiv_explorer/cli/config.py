@@ -1,10 +1,11 @@
 """AI configuration commands."""
+
 import typer
 
 from ..core.models import AIProviderType, Language
+from ..services.providers import PROVIDERS, get_provider
 from ..services.settings_service import SettingsService
-from ..services.providers import get_provider, PROVIDERS
-from ..utils.display import print_success, print_error, print_info, console
+from ..utils.display import console, print_error, print_info, print_success
 
 app = typer.Typer(
     help="AI provider configuration",
@@ -44,7 +45,9 @@ def show():
         provider = get_provider(ptype)
         available = provider.is_available()
         status = "[green]available[/green]" if available else "[red]not found[/red]"
-        current = " [yellow]← current[/yellow]" if ptype.value == all_settings["ai_provider"] else ""
+        current = (
+            " [yellow]← current[/yellow]" if ptype.value == all_settings["ai_provider"] else ""
+        )
         cli_name = provider.cli_command or "(not set)"
         console.print(f"  {ptype.value:8s} ({cli_name}) {status}{current}")
 
@@ -61,7 +64,7 @@ def set_provider(
     except ValueError:
         valid = ", ".join(p.value for p in AIProviderType)
         print_error(f"Unknown provider: {name}. Valid: {valid}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     settings = SettingsService()
     if provider_type == AIProviderType.CUSTOM and not settings.get("custom_command"):
@@ -106,17 +109,15 @@ def set_timeout(
 
 @app.command("set-language")
 def set_language(
-    lang: str = typer.Argument(
-        ..., help="Language code (en, ko)"
-    ),
+    lang: str = typer.Argument(..., help="Language code (en, ko)"),
 ):
     """Change display language."""
     try:
         language = Language(lang.lower())
     except ValueError:
-        valid = ", ".join(l.value for l in Language)
+        valid = ", ".join(lang_.value for lang_ in Language)
         print_error(f"Unknown language: {lang}. Valid: {valid}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     settings = SettingsService()
     settings.set("language", language.value)
@@ -125,9 +126,7 @@ def set_language(
 
 @app.command("set-custom")
 def set_custom(
-    template: str = typer.Argument(
-        ..., help="Command template (e.g. 'my-ai --prompt {prompt}')"
-    ),
+    template: str = typer.Argument(..., help="Command template (e.g. 'my-ai --prompt {prompt}')"),
 ):
     """Set custom AI command template.
 

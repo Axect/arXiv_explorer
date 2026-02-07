@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from textual import on, work
 from textual.app import ComposeResult
-from textual.containers import Vertical, Horizontal, VerticalScroll
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
-from textual.widgets import Static, Button
+from textual.widgets import Button, Static
 
-from ...core.models import RecommendedPaper, PaperSummary, PaperTranslation
+from ...core.models import PaperSummary, PaperTranslation, RecommendedPaper
 
 
 class PaperDetailScreen(ModalScreen):
@@ -127,9 +127,7 @@ class PaperDetailScreen(ModalScreen):
     @work(thread=True, group="detail-interaction")
     def _do_like(self) -> None:
         self.app.bridge.preferences.mark_interesting(self.rec.paper.arxiv_id)
-        self.app.call_from_thread(
-            self.app.notify, f"Liked {self.rec.paper.arxiv_id}"
-        )
+        self.app.call_from_thread(self.app.notify, f"Liked {self.rec.paper.arxiv_id}")
 
     def action_dislike(self) -> None:
         self._do_dislike()
@@ -137,9 +135,7 @@ class PaperDetailScreen(ModalScreen):
     @work(thread=True, group="detail-interaction")
     def _do_dislike(self) -> None:
         self.app.bridge.preferences.mark_not_interesting(self.rec.paper.arxiv_id)
-        self.app.call_from_thread(
-            self.app.notify, f"Disliked {self.rec.paper.arxiv_id}"
-        )
+        self.app.call_from_thread(self.app.notify, f"Disliked {self.rec.paper.arxiv_id}")
 
     def action_summarize(self) -> None:
         self.app.notify("Generating summary...")
@@ -161,6 +157,7 @@ class PaperDetailScreen(ModalScreen):
 
     def action_add_note(self) -> None:
         from .note_input import NoteInputScreen
+
         self.app.push_screen(NoteInputScreen(self.rec.paper.arxiv_id))
 
     def action_translate(self) -> None:
@@ -177,9 +174,7 @@ class PaperDetailScreen(ModalScreen):
             self.app.call_from_thread(self._render_translation, translation)
             self.app.call_from_thread(self.app.notify, "Translation complete")
         else:
-            self.app.call_from_thread(
-                self.app.notify, "Translation failed", severity="warning"
-            )
+            self.app.call_from_thread(self.app.notify, "Translation failed", severity="warning")
 
     def _render_translation(self, translation: PaperTranslation) -> None:
         lines = [
@@ -192,4 +187,5 @@ class PaperDetailScreen(ModalScreen):
 
     def action_add_to_list(self) -> None:
         from .list_picker import ListPickerScreen
+
         self.app.push_screen(ListPickerScreen(self.rec.paper.arxiv_id))

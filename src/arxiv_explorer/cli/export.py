@@ -1,13 +1,15 @@
 """Export commands."""
+
 import json
 from pathlib import Path
 from typing import Optional
+
 import typer
 
+from ..services.paper_service import PaperService
 from ..services.preference_service import PreferenceService
 from ..services.reading_list_service import ReadingListService
-from ..services.paper_service import PaperService
-from ..utils.display import console, print_success, print_error, print_info
+from ..utils.display import console, print_error, print_info, print_success
 
 app = typer.Typer(help="Export")
 
@@ -36,24 +38,30 @@ def export_interesting(
 
     # Format output
     if format == "json":
-        content = json.dumps([
-            {
-                "arxiv_id": p.arxiv_id,
-                "title": p.title,
-                "authors": p.authors,
-                "categories": p.categories,
-                "published": p.published.isoformat(),
-                "pdf_url": p.pdf_url,
-            }
-            for p in papers
-        ], indent=2, ensure_ascii=False)
+        content = json.dumps(
+            [
+                {
+                    "arxiv_id": p.arxiv_id,
+                    "title": p.title,
+                    "authors": p.authors,
+                    "categories": p.categories,
+                    "published": p.published.isoformat(),
+                    "pdf_url": p.pdf_url,
+                }
+                for p in papers
+            ],
+            indent=2,
+            ensure_ascii=False,
+        )
 
     elif format == "csv":
         lines = ["arxiv_id,title,authors,categories,published,pdf_url"]
         for p in papers:
             authors = "; ".join(p.authors)
             cats = "; ".join(p.categories)
-            lines.append(f'"{p.arxiv_id}","{p.title}","{authors}","{cats}","{p.published.date()}","{p.pdf_url}"')
+            lines.append(
+                f'"{p.arxiv_id}","{p.title}","{authors}","{cats}","{p.published.date()}","{p.pdf_url}"'
+            )
         content = "\n".join(lines)
 
     else:  # markdown
@@ -101,19 +109,23 @@ def export_list(
             papers_with_status.append((paper, lp.status))
 
     if format == "json":
-        content = json.dumps({
-            "name": reading_list.name,
-            "description": reading_list.description,
-            "papers": [
-                {
-                    "arxiv_id": p.arxiv_id,
-                    "title": p.title,
-                    "status": s.value,
-                    "pdf_url": p.pdf_url,
-                }
-                for p, s in papers_with_status
-            ]
-        }, indent=2, ensure_ascii=False)
+        content = json.dumps(
+            {
+                "name": reading_list.name,
+                "description": reading_list.description,
+                "papers": [
+                    {
+                        "arxiv_id": p.arxiv_id,
+                        "title": p.title,
+                        "status": s.value,
+                        "pdf_url": p.pdf_url,
+                    }
+                    for p, s in papers_with_status
+                ],
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
 
     else:  # markdown
         lines = [f"# {reading_list.name}\n"]
@@ -140,7 +152,10 @@ def export_markdown(
     """Convert paper to Markdown (via arxiv-doc-builder)."""
     import subprocess
 
-    script_path = Path(__file__).parent.parent.parent.parent.parent / ".claude/skills/arxiv-doc-builder/scripts/convert_paper.py"
+    script_path = (
+        Path(__file__).parent.parent.parent.parent.parent
+        / ".claude/skills/arxiv-doc-builder/scripts/convert_paper.py"
+    )
 
     if not script_path.exists():
         print_error("arxiv-doc-builder script not found.")

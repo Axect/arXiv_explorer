@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from textual import on, work
 from textual.app import ComposeResult
-from textual.containers import Vertical, Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Static, ListView, ListItem, Label, Button
+from textual.widgets import Button, Label, ListItem, ListView, Static
 
 
 class ListPickerScreen(ModalScreen):
@@ -44,9 +44,7 @@ class ListPickerScreen(ModalScreen):
         self._lists = lists
         for i, rl in enumerate(lists):
             desc = f" — {rl.description}" if rl.description else ""
-            view.append(
-                ListItem(Label(f"{rl.name}{desc}"), id=f"lp-{i}")
-            )
+            view.append(ListItem(Label(f"{rl.name}{desc}"), id=f"lp-{i}"))
 
     @on(ListView.Selected, "#list-picker-view")
     def _on_list_selected(self, event: ListView.Selected) -> None:
@@ -70,7 +68,5 @@ class ListPickerScreen(ModalScreen):
                 f"Added {self.arxiv_id} to '{list_name}'",
             )
         else:
-            self.app.call_from_thread(
-                self.app.notify, "Add failed", severity="warning"
-            )
+            self.app.call_from_thread(self.app.notify, "Add failed", severity="warning")
         self.app.call_from_thread(self.dismiss)

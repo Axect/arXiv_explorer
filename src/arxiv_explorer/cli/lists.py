@@ -1,10 +1,12 @@
 """Reading list commands."""
+
 from typing import Optional
+
 import typer
 
-from ..services.reading_list_service import ReadingListService
 from ..core.models import ReadingStatus
-from ..utils.display import console, print_success, print_error
+from ..services.reading_list_service import ReadingListService
+from ..utils.display import console, print_error, print_success
 
 app = typer.Typer(
     help="Reading list management",
@@ -83,7 +85,7 @@ def status(
         status_enum = ReadingStatus(new_status)
     except ValueError:
         print_error(f"Invalid status: {new_status}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     service = ReadingListService()
     if service.update_status(arxiv_id, status_enum):

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
-from textual.widgets import Static, Markdown
+from textual.widgets import Static
 
-from ...core.models import Paper, PaperSummary, PaperTranslation, RecommendedPaper
+from ...core.models import PaperSummary, PaperTranslation, RecommendedPaper
 
 
 class PaperPanel(VerticalScroll):
@@ -88,7 +88,7 @@ class PaperPanel(VerticalScroll):
         marker = "\n━━━ Summary ━━━"
         base = self._current_text
         if marker in base:
-            base = base[:base.index(marker)]
+            base = base[: base.index(marker)]
 
         summary_lines = self._format_summary(summary)
         self._current_text = base + "\n".join(summary_lines)
@@ -100,7 +100,7 @@ class PaperPanel(VerticalScroll):
         marker = "\n━━━ Translation ━━━"
         base = self._current_text
         if marker in base:
-            base = base[:base.index(marker)]
+            base = base[: base.index(marker)]
 
         translation_lines = self._format_translation(translation)
         self._current_text = base + "\n".join(translation_lines)

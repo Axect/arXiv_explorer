@@ -1,4 +1,5 @@
 """CLI main entry point."""
+
 import typer
 from rich.console import Console
 
@@ -16,6 +17,7 @@ console = Console()
 def version_callback(value: bool):
     if value:
         from .. import __version__
+
         console.print(f"arXiv Explorer v{__version__}")
         raise typer.Exit()
 
@@ -23,7 +25,9 @@ def version_callback(value: bool):
 @app.callback()
 def main(
     version: bool = typer.Option(
-        None, "--version", "-v",
+        None,
+        "--version",
+        "-v",
         callback=version_callback,
         is_eager=True,
         help="Show version",
@@ -35,7 +39,7 @@ def main(
 
 
 # Import and register subcommands
-from . import daily, search, preferences, lists, notes, export, config
+from . import config, daily, export, lists, notes, preferences, search  # noqa: E402
 
 app.add_typer(preferences.app, name="prefs", help="Preference management")
 app.add_typer(lists.app, name="list", help="Reading list management")
@@ -57,6 +61,7 @@ app.command(name="translate")(daily.translate)
 def tui():
     """Launch TUI mode."""
     from ..tui.app import launch_tui
+
     launch_tui()
 
 

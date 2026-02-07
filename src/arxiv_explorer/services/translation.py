@@ -1,11 +1,12 @@
 """Translation service using AI providers."""
+
 import json
 from datetime import datetime
 
 from ..core.database import get_connection
 from ..core.models import Language, PaperTranslation
-from .settings_service import SettingsService
 from .providers import get_provider
+from .settings_service import SettingsService
 
 # Language display names for prompts
 _LANG_NAMES: dict[Language, str] = {
@@ -90,6 +91,7 @@ Respond in this exact JSON format:
                 data = json.loads(output)
             except json.JSONDecodeError as e:
                 import sys
+
                 if "--verbose" in sys.argv or "-v" in sys.argv:
                     print(f"\nTranslation failed ({arxiv_id}): JSON parse error")
                     print(f"Error: {e}")
@@ -110,6 +112,7 @@ Respond in this exact JSON format:
 
         except Exception as e:
             import sys
+
             if "--verbose" in sys.argv or "-v" in sys.argv:
                 print(f"\nTranslation error ({arxiv_id}): {e}")
             return None

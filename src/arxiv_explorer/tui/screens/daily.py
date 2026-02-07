@@ -5,11 +5,11 @@ from __future__ import annotations
 from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Static, Select, Button
+from textual.widgets import Button, Select, Static
 
-from ..widgets.paper_table import PaperTable
-from ..widgets.paper_panel import PaperPanel
 from ...core.models import RecommendedPaper
+from ..widgets.paper_panel import PaperPanel
+from ..widgets.paper_table import PaperTable
 
 
 class DailyPane(Vertical):
@@ -131,6 +131,7 @@ class DailyPane(Vertical):
     @on(PaperTable.PaperSelected)
     def _on_paper_selected(self, event: PaperTable.PaperSelected) -> None:
         from .paper_detail import PaperDetailScreen
+
         self.app.push_screen(PaperDetailScreen(event.paper))
 
     def _fetch_papers(self) -> None:

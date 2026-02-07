@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from textual import on
 from textual.app import ComposeResult
-from textual.message import Message
-from textual.widgets import DataTable, Static, LoadingIndicator
 from textual.containers import Vertical
+from textual.message import Message
+from textual.widgets import DataTable, LoadingIndicator, Static
 
 from ...core.models import RecommendedPaper
 
@@ -39,12 +39,14 @@ class PaperTable(Vertical):
 
     class PaperSelected(Message):
         """Paper selected (Enter)."""
+
         def __init__(self, paper: RecommendedPaper) -> None:
             super().__init__()
             self.paper = paper
 
     class PaperHighlighted(Message):
         """Paper cursor moved (highlight)."""
+
         def __init__(self, paper: RecommendedPaper) -> None:
             super().__init__()
             self.paper = paper

@@ -1,5 +1,7 @@
 """Daily paper commands."""
+
 from typing import Optional
+
 import typer
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -8,15 +10,21 @@ from ..services.preference_service import PreferenceService
 from ..services.summarization import SummarizationService
 from ..services.translation import TranslationService
 from ..utils.display import (
-    console, print_paper_list, print_paper_detail,
-    print_success, print_error, print_info
+    console,
+    print_error,
+    print_info,
+    print_paper_detail,
+    print_paper_list,
+    print_success,
 )
 
 
 def daily(
     days: int = typer.Option(1, "--days", "-d", help="Number of days to fetch"),
     summarize: bool = typer.Option(False, "--summarize", "-s", help="Generate summaries"),
-    detailed: bool = typer.Option(False, "--detailed", help="Generate detailed summaries (use with --summarize)"),
+    detailed: bool = typer.Option(
+        False, "--detailed", help="Generate detailed summaries (use with --summarize)"
+    ),
     limit: int = typer.Option(20, "--limit", "-l", help="Maximum number of results"),
 ):
     """Fetch today's/recent papers (personalized ranking)."""
@@ -139,6 +147,7 @@ def like(
 
     if note:
         from .notes import _add_note
+
         _add_note(arxiv_id, note, "general")
 
 
@@ -152,9 +161,13 @@ def dislike(
 
 
 def show(
-    arxiv_id: Optional[str] = typer.Argument(None, help="arXiv ID (if omitted, shows recently liked papers)"),
+    arxiv_id: Optional[str] = typer.Argument(
+        None, help="arXiv ID (if omitted, shows recently liked papers)"
+    ),
     summary: bool = typer.Option(False, "--summary", "-s", help="Include summary"),
-    detailed: bool = typer.Option(False, "--detailed", "-d", help="Generate detailed summary (longer summary and analysis)"),
+    detailed: bool = typer.Option(
+        False, "--detailed", "-d", help="Generate detailed summary (longer summary and analysis)"
+    ),
     translate: bool = typer.Option(False, "--translate", "-t", help="Include translation"),
 ):
     """View paper details."""
@@ -172,7 +185,7 @@ def show(
             console.print("  With summary: [cyan]axp show 2602.04878v1 --summary[/cyan]")
             console.print("  Detailed summary: [cyan]axp show 2602.04878v1 --detailed[/cyan]")
             console.print("  Fetch recent papers: [cyan]axp daily --days 7[/cyan]")
-            console.print("  Search by keyword: [cyan]axp search \"quantum computing\"[/cyan]")
+            console.print('  Search by keyword: [cyan]axp search "quantum computing"[/cyan]')
             return
 
         console.print("[bold]Recently liked papers:[/bold]\n")
@@ -191,7 +204,9 @@ def show(
     paper_summary = None
     if summary or detailed:
         summarizer = SummarizationService()
-        paper_summary = summarizer.summarize(arxiv_id, paper.title, paper.abstract, detailed=detailed)
+        paper_summary = summarizer.summarize(
+            arxiv_id, paper.title, paper.abstract, detailed=detailed
+        )
 
     paper_translation = None
     if translate:

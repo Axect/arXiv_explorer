@@ -1,4 +1,5 @@
 """Reading list service."""
+
 from datetime import datetime
 from typing import Optional
 
@@ -13,14 +14,11 @@ class ReadingListService:
         """Create a reading list."""
         with get_connection() as conn:
             conn.execute(
-                "INSERT INTO reading_lists (name, description) VALUES (?, ?)",
-                (name, description)
+                "INSERT INTO reading_lists (name, description) VALUES (?, ?)", (name, description)
             )
             conn.commit()
 
-            row = conn.execute(
-                "SELECT * FROM reading_lists WHERE name = ?", (name,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM reading_lists WHERE name = ?", (name,)).fetchone()
 
             return ReadingList(
                 id=row["id"],
@@ -32,18 +30,14 @@ class ReadingListService:
     def delete_list(self, name: str) -> bool:
         """Delete a reading list."""
         with get_connection() as conn:
-            cursor = conn.execute(
-                "DELETE FROM reading_lists WHERE name = ?", (name,)
-            )
+            cursor = conn.execute("DELETE FROM reading_lists WHERE name = ?", (name,))
             conn.commit()
             return cursor.rowcount > 0
 
     def get_list(self, name: str) -> Optional[ReadingList]:
         """Get a reading list by name."""
         with get_connection() as conn:
-            row = conn.execute(
-                "SELECT * FROM reading_lists WHERE name = ?", (name,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM reading_lists WHERE name = ?", (name,)).fetchone()
 
             if row:
                 return ReadingList(
@@ -57,9 +51,7 @@ class ReadingListService:
     def get_all_lists(self) -> list[ReadingList]:
         """Get all reading lists."""
         with get_connection() as conn:
-            rows = conn.execute(
-                "SELECT * FROM reading_lists ORDER BY created_at DESC"
-            ).fetchall()
+            rows = conn.execute("SELECT * FROM reading_lists ORDER BY created_at DESC").fetchall()
 
             return [
                 ReadingList(
@@ -79,15 +71,18 @@ class ReadingListService:
 
         with get_connection() as conn:
             # Get the maximum position
-            max_pos = conn.execute(
-                "SELECT MAX(position) FROM reading_list_papers WHERE list_id = ?",
-                (reading_list.id,)
-            ).fetchone()[0] or 0
+            max_pos = (
+                conn.execute(
+                    "SELECT MAX(position) FROM reading_list_papers WHERE list_id = ?",
+                    (reading_list.id,),
+                ).fetchone()[0]
+                or 0
+            )
 
             conn.execute(
                 """INSERT OR IGNORE INTO reading_list_papers
                    (list_id, arxiv_id, position) VALUES (?, ?, ?)""",
-                (reading_list.id, arxiv_id, max_pos + 1)
+                (reading_list.id, arxiv_id, max_pos + 1),
             )
             conn.commit()
             return True
@@ -101,7 +96,7 @@ class ReadingListService:
         with get_connection() as conn:
             cursor = conn.execute(
                 "DELETE FROM reading_list_papers WHERE list_id = ? AND arxiv_id = ?",
-                (reading_list.id, arxiv_id)
+                (reading_list.id, arxiv_id),
             )
             conn.commit()
             return cursor.rowcount > 0
@@ -111,7 +106,7 @@ class ReadingListService:
         with get_connection() as conn:
             cursor = conn.execute(
                 "UPDATE reading_list_papers SET status = ? WHERE arxiv_id = ?",
-                (status.value, arxiv_id)
+                (status.value, arxiv_id),
             )
             conn.commit()
             return cursor.rowcount > 0
@@ -126,7 +121,7 @@ class ReadingListService:
             rows = conn.execute(
                 """SELECT * FROM reading_list_papers
                    WHERE list_id = ? ORDER BY position""",
-                (reading_list.id,)
+                (reading_list.id,),
             ).fetchall()
 
             return [
