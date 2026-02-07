@@ -1,0 +1,130 @@
+/* arXiv Explorer TUI stylesheet */
+
+Screen {
+    background: $surface;
+}
+
+/* Tab content */
+TabbedContent {
+    height: 1fr;
+}
+
+TabPane {
+    padding: 0;
+}
+
+/* Common DataTable */
+DataTable {
+    height: 1fr;
+}
+
+DataTable > .datatable--cursor {
+    background: $accent 30%;
+}
+
+DataTable > .datatable--hover {
+    background: $accent 15%;
+}
+
+/* Hidden utility */
+.hidden {
+    display: none;
+}
+
+/* Help text */
+.help-text {
+    color: $text-muted;
+    text-style: italic;
+    margin: 1 2;
+}
+
+/* Placeholder */
+.placeholder-pane {
+    content-align: center middle;
+    height: 1fr;
+    color: $text-muted;
+}
+
+/* Modal screen */
+ModalScreen {
+    align: center middle;
+}
+
+ModalScreen > Vertical {
+    width: 80;
+    max-width: 90%;
+    height: auto;
+    max-height: 80%;
+    background: $surface;
+    border: tall $accent;
+    padding: 1 2;
+}
+
+/* PaperDetailScreen: ensure scroll area height */
+#detail-scroll {
+    height: 1fr;
+    min-height: 10;
+}
+
+/* Modal title */
+.modal-title {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+    text-align: center;
+    width: 100%;
+}
+
+/* Modal button bar */
+.modal-buttons {
+    height: 3;
+    margin-top: 1;
+    align-horizontal: center;
+}
+
+.modal-buttons Button {
+    margin: 0 1;
+    min-width: 12;
+}
+
+/* Preferences table */
+.pref-section {
+    height: 1fr;
+    border: tall $surface-lighten-1;
+    padding: 0 1;
+}
+
+.pref-section-title {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+.pref-input-row {
+    height: 3;
+    dock: bottom;
+    padding: 0 1;
+}
+
+.pref-input-row Input {
+    width: 1fr;
+    margin-right: 1;
+}
+
+.pref-input-row Button {
+    min-width: 8;
+}
+
+/* Common ListView */
+ListView {
+    height: 1fr;
+}
+
+ListView > ListItem {
+    padding: 0 1;
+}
+
+/* Common Select */
+Select {
+    margin: 0;
+}

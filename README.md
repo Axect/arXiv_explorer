@@ -1,0 +1,118 @@
+# arXiv Explorer
+
+Personalized arXiv paper recommendation and management system with CLI and TUI interfaces.
+
+## Features
+
+- **Personalized Recommendations** — TF-IDF content similarity + category/keyword/recency scoring
+- **Reading Lists** — Organize papers into named lists with reading status tracking
+- **Paper Notes** — Attach typed notes (general, question, insight, todo) to any paper
+- **AI Summaries** — Generate summaries via configurable AI providers (Gemini, Claude, OpenAI, Ollama, or custom)
+- **Translation** — Translate paper titles and abstracts via AI
+- **Export** — Markdown, JSON, CSV export for papers, lists, and notes
+- **TUI** — Full terminal UI with tabs, detail panels, and keyboard shortcuts
+- **Paper Cache** — SQLite-backed cache eliminates redundant arXiv API calls
+
+## Requirements
+
+- Python 3.11+
+- [uv](https://docs.astral.sh/uv/) package manager
+
+## Installation
+
+```bash
+git clone https://github.com/Axect/arXiv_explorer.git
+cd arXiv_explorer
+uv sync
+```
+
+## Quick Start
+
+```bash
+# Set up preferred categories
+axp prefs add-category hep-ph --priority 2
+axp prefs add-category cs.AI
+
+# Fetch and rank recent papers
+axp daily --days 7 --limit 10
+
+# Search arXiv
+axp search "quantum computing"
+
+# Mark a paper as interesting (improves future recommendations)
+axp like 2501.12345
+
+# Launch the TUI
+axp tui
+```
+
+See [QUICKSTART.md](QUICKSTART.md) for a full walkthrough.
+
+## CLI Reference
+
+### Paper Discovery
+
+| Command | Description |
+|---------|-------------|
+| `axp daily [-d DAYS] [-l LIMIT] [-s]` | Fetch recent papers with personalized ranking |
+| `axp top [-l LIMIT] [-s]` | View top recommended papers (from liked history) |
+| `axp search QUERY [-l LIMIT] [-a]` | Search papers (add `-a` for direct arXiv API) |
+
+### Paper Interaction
+
+| Command | Description |
+|---------|-------------|
+| `axp show [ARXIV_ID] [-s] [-d] [-t]` | View paper details (or recently liked papers) |
+| `axp like ARXIV_ID [-n NOTE]` | Mark a paper as interesting |
+| `axp dislike ARXIV_ID` | Mark a paper as not interesting |
+| `axp translate ARXIV_ID` | Translate a paper's title and abstract |
+
+### Organization
+
+| Command | Description |
+|---------|-------------|
+| `axp prefs` | View/manage preferred categories and keywords |
+| `axp list` | Manage reading lists (create, add, remove, status) |
+| `axp note` | Manage paper notes (add, show, list) |
+| `axp export` | Export papers/lists to Markdown, JSON, or CSV |
+
+### Configuration
+
+| Command | Description |
+|---------|-------------|
+| `axp config show` | View current AI provider settings |
+| `axp config set-provider PROVIDER` | Change AI provider (gemini, claude, openai, ollama, custom) |
+| `axp config set-language LANG` | Change display language (en, ko) |
+| `axp config test` | Test current provider connection |
+| `axp tui` | Launch interactive terminal UI |
+
+## Architecture
+
+```
+src/arxiv_explorer/
+  core/       # Data models, database schema, configuration
+  services/   # Business logic (recommendation, search, summarization, caching)
+  cli/        # Typer-based CLI commands
+  tui/        # Textual-based terminal UI (tabs: Daily, Search, Lists, Notes, Prefs)
+  utils/      # Display helpers
+```
+
+**Recommendation Algorithm** — Papers are scored using a weighted combination of:
+- Content similarity (50%) — TF-IDF cosine similarity to liked papers
+- Category matching (20%) — Priority-weighted category overlap
+- Keyword matching (10%) — Weighted keyword presence
+- Recency bonus (5%) — Papers published within the last 30 days
+
+## Integration
+
+- **[arxivterminal](https://github.com/Axect/arxivterminal)** — Reads from its local paper database (read-only)
+- **[arxiv-doc-builder](https://github.com/Axect/arxiv-doc-builder)** — Converts papers to Markdown via `axp export markdown`
+- **AI Providers** — Gemini CLI, Claude, OpenAI, Ollama, or custom command templates
+
+## Data Storage
+
+All data is stored locally in SQLite at `~/.config/arxiv-explorer/explorer.db`. No cloud sync.
+
+## License
+
+[MIT](LICENSE)
