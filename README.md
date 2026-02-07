@@ -2,6 +2,8 @@
 
 Personalized arXiv paper recommendation and management system with CLI and TUI interfaces.
 
+![arXiv Explorer TUI](tui.png)
+
 ## Features
 
 - **Personalized Recommendations** — TF-IDF content similarity + category/keyword/recency scoring
@@ -84,7 +86,20 @@ See [QUICKSTART.md](QUICKSTART.md) for a full walkthrough.
 | `axp config set-provider PROVIDER` | Change AI provider (gemini, claude, openai, ollama, custom) |
 | `axp config set-language LANG` | Change display language (en, ko) |
 | `axp config test` | Test current provider connection |
-| `axp tui` | Launch interactive terminal UI |
+
+## TUI
+
+Launch with `axp tui`. The terminal UI provides a full interactive experience with five tabs:
+
+| Tab | Key | Description |
+|-----|-----|-------------|
+| **Daily** | `1` | Browse personalized papers with detail panel |
+| **Search** | `2` | Search arXiv interactively |
+| **Lists** | `3` | Manage reading lists and track status |
+| **Notes** | `4` | Browse and filter paper notes |
+| **Prefs** | `5` | Manage categories, keywords, and AI settings |
+
+**Key bindings**: `Enter` open detail / `l` like / `d` dislike / `s` summarize / `t` translate / `n` note / `a` add to list / `r` refresh / `q` quit
 
 ## Architecture
 
