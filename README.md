@@ -118,11 +118,52 @@ src/arxiv_explorer/
 - Keyword matching (10%) — Weighted keyword presence
 - Recency bonus (5%) — Papers published within the last 30 days
 
+## AI Providers
+
+AI features (summarization and translation) work by calling external CLI tools via subprocess. No API keys are stored in the application — each tool manages its own authentication.
+
+| Provider | CLI command | Invocation | Default model |
+|----------|------------|------------|---------------|
+| **Gemini** | `gemini` | `gemini -m MODEL -p PROMPT` | (provider default) |
+| **Claude** | `claude` | `claude --model MODEL -p PROMPT --output-format text` | (provider default) |
+| **Codex** (OpenAI) | `codex` | `codex --model MODEL --prompt PROMPT` | (provider default) |
+| **Ollama** | `ollama` | `ollama run MODEL PROMPT` | `llama3.2` |
+| **OpenCode** | `opencode` | `opencode run --model MODEL PROMPT` | (provider default) |
+| **Custom** | user-defined | template with `{prompt}` and optional `{model}` placeholders | — |
+
+### Setup
+
+```bash
+# Check which providers are available on your system
+axp config show
+
+# Switch to a different provider
+axp config set-provider claude
+
+# Override the default model
+axp config set-model "claude-sonnet-4-5-20250929"
+
+# Set a custom command template
+axp config set-custom "my-ai -m {model} -p {prompt}"
+axp config set-provider custom
+
+# Verify that the provider works
+axp config test
+```
+
+### How it works
+
+1. The active provider receives a structured prompt requesting JSON output
+2. The CLI tool processes the prompt using its own API key / local model
+3. arXiv Explorer parses the JSON response and caches the result in SQLite
+4. Subsequent requests for the same paper return instantly from cache
+
+Summarization and translation are available in both CLI (`axp show -s`, `axp translate`) and TUI (`s` / `t` keys in paper detail).
+
 ## Integration
 
 - **[arxivterminal](https://github.com/Axect/arxivterminal)** — Reads from its local paper database (read-only)
 - **[arxiv-doc-builder](https://github.com/Axect/arxiv-doc-builder)** — Converts papers to Markdown via `axp export markdown`
-- **AI Providers** — Gemini CLI, Claude, OpenAI, Ollama, or custom command templates
 
 ## Data Storage
 
