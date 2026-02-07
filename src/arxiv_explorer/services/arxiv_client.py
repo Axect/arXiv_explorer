@@ -1,16 +1,15 @@
 """arXiv API client."""
+
 import json
+import sqlite3
 import time
 from datetime import datetime, timedelta
-from typing import Iterator
-import xml.etree.ElementTree as ET
 
-import httpx
 import feedparser
+import httpx
 
 from ..core.database import get_connection
 from ..core.models import Paper
-
 
 ARXIV_API_URL = "https://export.arxiv.org/api/query"
 RATE_LIMIT_SECONDS = 3
@@ -72,10 +71,7 @@ class ArxivClient:
         papers = self.search(cat_query, max_results=max_results)
 
         # Filter by date
-        return [
-            p for p in papers
-            if p.published >= start_date
-        ]
+        return [p for p in papers if p.published >= start_date]
 
     def get_paper(self, arxiv_id: str) -> Paper | None:
         """Get a specific paper (cache-first)."""
@@ -108,9 +104,7 @@ class ArxivClient:
     def _get_cached(self, arxiv_id: str) -> Paper | None:
         """Look up a single paper from DB."""
         with get_connection() as conn:
-            row = conn.execute(
-                "SELECT * FROM papers WHERE arxiv_id = ?", (arxiv_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM papers WHERE arxiv_id = ?", (arxiv_id,)).fetchone()
         if row is None:
             return None
         return self._row_to_paper(row)

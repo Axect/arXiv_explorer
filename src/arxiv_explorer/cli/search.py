@@ -1,8 +1,9 @@
 """Search commands."""
+
 import typer
 
 from ..services.paper_service import PaperService
-from ..utils.display import print_paper_list, print_info
+from ..utils.display import print_info, print_paper_list
 
 
 def search(

@@ -1,4 +1,5 @@
 """Paper service."""
+
 from ..core.models import Paper, RecommendedPaper
 from .arxiv_client import ArxivClient
 from .preference_service import PreferenceService

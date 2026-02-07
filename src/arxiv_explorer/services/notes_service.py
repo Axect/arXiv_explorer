@@ -1,9 +1,10 @@
 """Notes service."""
+
 from datetime import datetime
 from typing import Optional
 
 from ..core.database import get_connection
-from ..core.models import PaperNote, NoteType
+from ..core.models import NoteType, PaperNote
 
 
 class NotesService:
@@ -20,7 +21,7 @@ class NotesService:
             cursor = conn.execute(
                 """INSERT INTO paper_notes (arxiv_id, note_type, content)
                    VALUES (?, ?, ?)""",
-                (arxiv_id, note_type.value, content)
+                (arxiv_id, note_type.value, content),
             )
             conn.commit()
 
@@ -35,9 +36,7 @@ class NotesService:
     def delete_note(self, note_id: int) -> bool:
         """Delete a note."""
         with get_connection() as conn:
-            cursor = conn.execute(
-                "DELETE FROM paper_notes WHERE id = ?", (note_id,)
-            )
+            cursor = conn.execute("DELETE FROM paper_notes WHERE id = ?", (note_id,))
             conn.commit()
             return cursor.rowcount > 0
 

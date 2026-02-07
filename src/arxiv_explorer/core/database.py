@@ -1,11 +1,11 @@
 """Database management."""
+
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
 from .config import get_config
-
 
 SCHEMA = """
 -- Preferred categories

@@ -1,11 +1,13 @@
 """Recommendation engine."""
+
 from datetime import datetime
+
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from ..core.models import Paper, RecommendedPaper, PreferredCategory, KeywordInterest
 from ..core.config import get_config
+from ..core.models import KeywordInterest, Paper, PreferredCategory, RecommendedPaper
 
 
 class RecommendationEngine:
@@ -31,10 +33,7 @@ class RecommendationEngine:
             return None
 
         # Combine paper text
-        documents = [
-            f"{p.title} {p.abstract}"
-            for p in liked_papers
-        ]
+        documents = [f"{p.title} {p.abstract}" for p in liked_papers]
 
         # Compute TF-IDF vectors
         if not self._is_fitted:
@@ -71,10 +70,7 @@ class RecommendationEngine:
             if user_profile is not None and self._is_fitted:
                 doc = f"{paper.title} {paper.abstract}"
                 paper_vector = self.vectorizer.transform([doc])
-                content_sim = cosine_similarity(
-                    user_profile.reshape(1, -1),
-                    paper_vector
-                )[0, 0]
+                content_sim = cosine_similarity(user_profile.reshape(1, -1), paper_vector)[0, 0]
                 score += content_sim * config.content_weight
 
             # 2. Category matching

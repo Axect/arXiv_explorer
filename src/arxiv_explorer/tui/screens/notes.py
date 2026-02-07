@@ -5,7 +5,7 @@ from __future__ import annotations
 from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Static, ListView, ListItem, Label, DataTable
+from textual.widgets import DataTable, Label, ListItem, ListView, Static
 
 from ...core.models import PaperNote
 
@@ -143,9 +143,7 @@ class NotesPane(Vertical):
 
     def _show_notes_for_paper(self, arxiv_id: str) -> None:
         notes = self._paper_groups.get(arxiv_id, [])
-        self.query_one("#notes-right-title", Static).update(
-            f"{arxiv_id} — {len(notes)} note(s)"
-        )
+        self.query_one("#notes-right-title", Static).update(f"{arxiv_id} — {len(notes)} note(s)")
         table = self.query_one("#notes-detail-table", DataTable)
         table.clear()
         for i, n in enumerate(notes, 1):
@@ -160,6 +158,4 @@ class NotesPane(Vertical):
             self.app.call_from_thread(self.app.notify, "Note deleted")
             self._load_notes()
         else:
-            self.app.call_from_thread(
-                self.app.notify, "Delete failed", severity="warning"
-            )
+            self.app.call_from_thread(self.app.notify, "Delete failed", severity="warning")

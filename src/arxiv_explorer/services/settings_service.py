@@ -1,7 +1,7 @@
 """App settings service."""
+
 from ..core.database import get_connection
 from ..core.models import AIProviderType, Language
-
 
 DEFAULTS: dict[str, str] = {
     "ai_provider": AIProviderType.GEMINI.value,
@@ -18,9 +18,7 @@ class SettingsService:
     def get(self, key: str) -> str:
         """Get a setting value (returns default if not found)."""
         with get_connection() as conn:
-            row = conn.execute(
-                "SELECT value FROM app_settings WHERE key = ?", (key,)
-            ).fetchone()
+            row = conn.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
             if row:
                 return row["value"]
         return DEFAULTS.get(key, "")

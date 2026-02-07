@@ -1,12 +1,11 @@
 """Console output utilities."""
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-from rich.text import Text
+
 from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
-from ..core.models import RecommendedPaper, Paper, PaperSummary, PaperTranslation, ReadingList
-
+from ..core.models import Paper, PaperSummary, PaperTranslation, RecommendedPaper
 
 console = Console()
 
@@ -52,11 +51,13 @@ def print_paper_detail(
 ) -> None:
     """Display paper details."""
     # Title
-    console.print(Panel(
-        f"[bold]{paper.title}[/bold]",
-        title=f"[green]{paper.arxiv_id}[/green]",
-        border_style="blue",
-    ))
+    console.print(
+        Panel(
+            f"[bold]{paper.title}[/bold]",
+            title=f"[green]{paper.arxiv_id}[/green]",
+            border_style="blue",
+        )
+    )
 
     # Metadata
     console.print(f"[cyan]Authors:[/cyan] {', '.join(paper.authors[:5])}")
@@ -68,20 +69,24 @@ def print_paper_detail(
     # Summary
     if summary:
         console.print()
-        console.print(Panel(
-            summary.summary_short,
-            title="[yellow]Summary[/yellow]",
-            border_style="yellow",
-        ))
+        console.print(
+            Panel(
+                summary.summary_short,
+                title="[yellow]Summary[/yellow]",
+                border_style="yellow",
+            )
+        )
 
         # Detailed summary
         if summary.summary_detailed:
             console.print()
-            console.print(Panel(
-                summary.summary_detailed,
-                title="[cyan]Detailed Summary[/cyan]",
-                border_style="cyan",
-            ))
+            console.print(
+                Panel(
+                    summary.summary_detailed,
+                    title="[cyan]Detailed Summary[/cyan]",
+                    border_style="cyan",
+                )
+            )
 
         if summary.key_findings:
             console.print()
@@ -91,26 +96,32 @@ def print_paper_detail(
 
     # Abstract
     console.print()
-    console.print(Panel(
-        paper.abstract,
-        title="[dim]Abstract[/dim]",
-        border_style="dim",
-    ))
+    console.print(
+        Panel(
+            paper.abstract,
+            title="[dim]Abstract[/dim]",
+            border_style="dim",
+        )
+    )
 
     # Translation
     if translation:
         console.print()
-        console.print(Panel(
-            translation.translated_title,
-            title="[magenta]Translated Title[/magenta]",
-            border_style="magenta",
-        ))
+        console.print(
+            Panel(
+                translation.translated_title,
+                title="[magenta]Translated Title[/magenta]",
+                border_style="magenta",
+            )
+        )
         console.print()
-        console.print(Panel(
-            translation.translated_abstract,
-            title="[magenta]Translated Abstract[/magenta]",
-            border_style="magenta",
-        ))
+        console.print(
+            Panel(
+                translation.translated_abstract,
+                title="[magenta]Translated Abstract[/magenta]",
+                border_style="magenta",
+            )
+        )
 
 
 def print_categories(categories: list) -> None:

@@ -1,17 +1,20 @@
 """Summarization service using AI providers."""
+
 import json
 from datetime import datetime
 
 from ..core.database import get_connection
 from ..core.models import PaperSummary
-from .settings_service import SettingsService
 from .providers import get_provider
+from .settings_service import SettingsService
 
 
 class SummarizationService:
     """Paper summarization using AI CLI providers."""
 
-    def summarize(self, arxiv_id: str, title: str, abstract: str, detailed: bool = False) -> PaperSummary | None:
+    def summarize(
+        self, arxiv_id: str, title: str, abstract: str, detailed: bool = False
+    ) -> PaperSummary | None:
         """Generate a paper summary."""
         # Check cache
         cached = self._get_cached(arxiv_id)
@@ -80,6 +83,7 @@ Output only JSON in the following format (no other text):
             except json.JSONDecodeError as e:
                 # JSON parse failure - print debug info and return None
                 import sys
+
                 if "--verbose" in sys.argv or "-v" in sys.argv:
                     print(f"\nSummary generation failed ({arxiv_id}): JSON parse error")
                     print(f"Error: {e}")
@@ -103,6 +107,7 @@ Output only JSON in the following format (no other text):
         except Exception as e:
             # Other error - fail silently
             import sys
+
             if "--verbose" in sys.argv or "-v" in sys.argv:
                 print(f"\nError during summary generation ({arxiv_id}): {e}")
             return None
@@ -111,8 +116,7 @@ Output only JSON in the following format (no other text):
         """Retrieve a cached summary."""
         with get_connection() as conn:
             row = conn.execute(
-                "SELECT * FROM paper_summaries WHERE arxiv_id = ?",
-                (arxiv_id,)
+                "SELECT * FROM paper_summaries WHERE arxiv_id = ?", (arxiv_id,)
             ).fetchone()
 
             if row:
@@ -138,6 +142,6 @@ Output only JSON in the following format (no other text):
                     summary.summary_short,
                     summary.summary_detailed,
                     json.dumps(summary.key_findings),
-                )
+                ),
             )
             conn.commit()

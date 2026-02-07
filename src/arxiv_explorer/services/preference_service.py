@@ -1,12 +1,9 @@
 """User preference service."""
-import json
+
 from datetime import datetime
 
 from ..core.database import get_connection
-from ..core.models import (
-    PreferredCategory, PaperInteraction, KeywordInterest,
-    InteractionType
-)
+from ..core.models import InteractionType, KeywordInterest, PreferredCategory
 
 
 class PreferenceService:
@@ -17,17 +14,16 @@ class PreferenceService:
     def add_category(self, category: str, priority: int = 1) -> PreferredCategory:
         """Add a preferred category."""
         with get_connection() as conn:
-            cursor = conn.execute(
+            conn.execute(
                 """INSERT INTO preferred_categories (category, priority)
                    VALUES (?, ?)
                    ON CONFLICT(category) DO UPDATE SET priority = ?""",
-                (category, priority, priority)
+                (category, priority, priority),
             )
             conn.commit()
 
             row = conn.execute(
-                "SELECT * FROM preferred_categories WHERE category = ?",
-                (category,)
+                "SELECT * FROM preferred_categories WHERE category = ?", (category,)
             ).fetchone()
 
             return PreferredCategory(
@@ -41,8 +37,7 @@ class PreferenceService:
         """Remove a preferred category."""
         with get_connection() as conn:
             cursor = conn.execute(
-                "DELETE FROM preferred_categories WHERE category = ?",
-                (category,)
+                "DELETE FROM preferred_categories WHERE category = ?", (category,)
             )
             conn.commit()
             return cursor.rowcount > 0
@@ -73,13 +68,13 @@ class PreferenceService:
             conn.execute(
                 """DELETE FROM paper_interactions
                    WHERE arxiv_id = ? AND interaction_type = ?""",
-                (arxiv_id, InteractionType.NOT_INTERESTING.value)
+                (arxiv_id, InteractionType.NOT_INTERESTING.value),
             )
             # Add interesting
             conn.execute(
                 """INSERT OR REPLACE INTO paper_interactions (arxiv_id, interaction_type)
                    VALUES (?, ?)""",
-                (arxiv_id, InteractionType.INTERESTING.value)
+                (arxiv_id, InteractionType.INTERESTING.value),
             )
             conn.commit()
 
@@ -90,13 +85,13 @@ class PreferenceService:
             conn.execute(
                 """DELETE FROM paper_interactions
                    WHERE arxiv_id = ? AND interaction_type = ?""",
-                (arxiv_id, InteractionType.INTERESTING.value)
+                (arxiv_id, InteractionType.INTERESTING.value),
             )
             # Add not_interesting
             conn.execute(
                 """INSERT OR REPLACE INTO paper_interactions (arxiv_id, interaction_type)
                    VALUES (?, ?)""",
-                (arxiv_id, InteractionType.NOT_INTERESTING.value)
+                (arxiv_id, InteractionType.NOT_INTERESTING.value),
             )
             conn.commit()
 
@@ -107,7 +102,7 @@ class PreferenceService:
                 """SELECT arxiv_id FROM paper_interactions
                    WHERE interaction_type = ?
                    ORDER BY created_at DESC""",
-                (InteractionType.INTERESTING.value,)
+                (InteractionType.INTERESTING.value,),
             ).fetchall()
             return [row["arxiv_id"] for row in rows]
 
@@ -115,8 +110,7 @@ class PreferenceService:
         """Get the interaction status of a paper."""
         with get_connection() as conn:
             row = conn.execute(
-                "SELECT interaction_type FROM paper_interactions WHERE arxiv_id = ?",
-                (arxiv_id,)
+                "SELECT interaction_type FROM paper_interactions WHERE arxiv_id = ?", (arxiv_id,)
             ).fetchone()
 
             if row:
@@ -132,7 +126,7 @@ class PreferenceService:
                 """INSERT INTO keyword_interests (keyword, weight, source)
                    VALUES (?, ?, 'explicit')
                    ON CONFLICT(keyword) DO UPDATE SET weight = ?""",
-                (keyword.lower(), weight, weight)
+                (keyword.lower(), weight, weight),
             )
             conn.commit()
 
@@ -140,8 +134,7 @@ class PreferenceService:
         """Remove a keyword interest."""
         with get_connection() as conn:
             cursor = conn.execute(
-                "DELETE FROM keyword_interests WHERE keyword = ?",
-                (keyword.lower(),)
+                "DELETE FROM keyword_interests WHERE keyword = ?", (keyword.lower(),)
             )
             conn.commit()
             return cursor.rowcount > 0
@@ -149,9 +142,7 @@ class PreferenceService:
     def get_keywords(self) -> list[KeywordInterest]:
         """Get the list of keyword interests."""
         with get_connection() as conn:
-            rows = conn.execute(
-                "SELECT * FROM keyword_interests ORDER BY weight DESC"
-            ).fetchall()
+            rows = conn.execute("SELECT * FROM keyword_interests ORDER BY weight DESC").fetchall()
 
             return [
                 KeywordInterest(

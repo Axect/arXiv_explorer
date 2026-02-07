@@ -1,4 +1,5 @@
 """AI provider abstraction."""
+
 import shlex
 import shutil
 import subprocess
@@ -36,7 +37,10 @@ class AIProvider(ABC):
         cmd = self.build_command(prompt, model)
         try:
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=timeout,
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
             )
             if result.returncode != 0:
                 return None
@@ -75,6 +79,7 @@ class ClaudeProvider(AIProvider):
 
 class CodexProvider(AIProvider):
     """OpenAI provider via Codex CLI."""
+
     provider_type = AIProviderType.OPENAI
     cli_command = "codex"
     default_model = ""
@@ -100,6 +105,7 @@ class OllamaProvider(AIProvider):
 
 class OpencodeProvider(AIProvider):
     """OpenCode CLI provider."""
+
     provider_type = AIProviderType.OPENCODE
     cli_command = "opencode"
     default_model = ""
@@ -115,6 +121,7 @@ class OpencodeProvider(AIProvider):
 
 class CustomProvider(AIProvider):
     """Custom CLI template provider."""
+
     provider_type = AIProviderType.CUSTOM
     cli_command = ""
     default_model = ""
@@ -159,6 +166,7 @@ def get_provider(provider_type: AIProviderType) -> AIProvider:
     provider = PROVIDERS[provider_type]
     if provider_type == AIProviderType.CUSTOM:
         from .settings_service import SettingsService
+
         template = SettingsService().get("custom_command")
         provider.configure(template)
     return provider

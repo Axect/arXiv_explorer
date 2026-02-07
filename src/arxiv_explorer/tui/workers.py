@@ -1,12 +1,12 @@
 """Service facade — holds all service instances."""
 
+from ..services.notes_service import NotesService
 from ..services.paper_service import PaperService
 from ..services.preference_service import PreferenceService
 from ..services.reading_list_service import ReadingListService
-from ..services.notes_service import NotesService
+from ..services.settings_service import SettingsService
 from ..services.summarization import SummarizationService
 from ..services.translation import TranslationService
-from ..services.settings_service import SettingsService
 
 
 class ServiceBridge:

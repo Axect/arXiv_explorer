@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from textual import on, work
 from textual.app import ComposeResult
-from textual.containers import Vertical, Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Static, Input, Button
+from textual.widgets import Button, Input, Static
 
 
 class ListCreateScreen(ModalScreen):
@@ -55,6 +55,4 @@ class ListCreateScreen(ModalScreen):
             self.app.call_from_thread(self.app.notify, f"List created: {name}")
             self.app.call_from_thread(self.dismiss, True)  # True = creation success result
         except Exception as e:
-            self.app.call_from_thread(
-                self.app.notify, f"Creation failed: {e}", severity="error"
-            )
+            self.app.call_from_thread(self.app.notify, f"Creation failed: {e}", severity="error")

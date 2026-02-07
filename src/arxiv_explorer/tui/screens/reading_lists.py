@@ -5,7 +5,7 @@ from __future__ import annotations
 from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Static, ListView, ListItem, Label, DataTable, Button, Select
+from textual.widgets import Button, DataTable, Label, ListItem, ListView, Select, Static
 
 from ...core.models import ReadingList, ReadingListPaper, ReadingStatus
 
@@ -123,9 +123,11 @@ class ReadingListsPane(Vertical):
 
     def action_create_list(self) -> None:
         from .list_create import ListCreateScreen
+
         def on_dismiss(result) -> None:
             if result:
                 self._load_lists()
+
         self.app.push_screen(ListCreateScreen(), callback=on_dismiss)
 
     def action_delete_item(self) -> None:
@@ -171,9 +173,7 @@ class ReadingListsPane(Vertical):
         view.clear()
         for i, rl in enumerate(lists):
             desc = f" ({rl.description})" if rl.description else ""
-            view.append(
-                ListItem(Label(f"{rl.name}{desc}"), id=f"rll-{i}")
-            )
+            view.append(ListItem(Label(f"{rl.name}{desc}"), id=f"rll-{i}"))
         if not lists:
             self.query_one("#rl-right-title", Static).update("No lists — press [c] to create")
 
@@ -205,9 +205,7 @@ class ReadingListsPane(Vertical):
             self._current_list = None
             self._load_lists()
         else:
-            self.app.call_from_thread(
-                self.app.notify, "Delete failed", severity="warning"
-            )
+            self.app.call_from_thread(self.app.notify, "Delete failed", severity="warning")
 
     def _change_status(self) -> None:
         if not self._current_list or not self._papers:
@@ -226,15 +224,15 @@ class ReadingListsPane(Vertical):
             return
 
         status_select = self.query_one("#rl-status-select", Select)
-        status = status_select.value if status_select.value != Select.BLANK else ReadingStatus.UNREAD
+        status = (
+            status_select.value if status_select.value != Select.BLANK else ReadingStatus.UNREAD
+        )
         self._do_change_status(paper.arxiv_id, status)
 
     @work(thread=True, group="rl-status")
     def _do_change_status(self, arxiv_id: str, status: ReadingStatus) -> None:
         self.app.bridge.reading_lists.update_status(arxiv_id, status)
-        self.app.call_from_thread(
-            self.app.notify, f"{arxiv_id} → {status.value}"
-        )
+        self.app.call_from_thread(self.app.notify, f"{arxiv_id} → {status.value}")
         self._load_papers()
 
     def _remove_current_paper(self) -> None:

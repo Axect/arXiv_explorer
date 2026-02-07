@@ -1,10 +1,12 @@
 """Note commands."""
+
 from typing import Optional
+
 import typer
 
-from ..services.notes_service import NotesService
 from ..core.models import NoteType
-from ..utils.display import console, print_success, print_error
+from ..services.notes_service import NotesService
+from ..utils.display import console, print_error, print_success
 
 app = typer.Typer(
     help="Paper note management",
@@ -36,7 +38,9 @@ def _add_note(arxiv_id: str, content: str, note_type: str) -> None:
 def add(
     arxiv_id: str = typer.Argument(..., help="arXiv ID"),
     content: str = typer.Argument(..., help="Note content"),
-    note_type: str = typer.Option("general", "--type", "-t", help="Type (general/question/insight/todo)"),
+    note_type: str = typer.Option(
+        "general", "--type", "-t", help="Type (general/question/insight/todo)"
+    ),
 ):
     """Add a note to a paper."""
     _add_note(arxiv_id, content, note_type)
@@ -82,7 +86,7 @@ def list_notes(
             type_enum = NoteType(note_type)
         except ValueError:
             print_error(f"Invalid type: {note_type}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
     notes = service.get_notes(note_type=type_enum)
 
