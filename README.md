@@ -1,8 +1,21 @@
 # arXiv Explorer
 
-Personalized arXiv paper recommendation and management system with CLI and TUI interfaces.
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![CI](https://github.com/Axect/arXiv_explorer/actions/workflows/ci.yml/badge.svg)](https://github.com/Axect/arXiv_explorer/actions/workflows/ci.yml)
+[![GitHub stars](https://img.shields.io/github/stars/Axect/arXiv_explorer)](https://github.com/Axect/arXiv_explorer/stargazers)
+
+> Your personal research assistant for arXiv — discover, organize, and annotate papers from the terminal.
 
 ![arXiv Explorer TUI](tui.png)
+
+## Why arXiv Explorer?
+
+- **Learns from you** — The recommendation engine improves every time you like or dislike a paper. No manual tuning required.
+- **No API keys needed** — Fetches papers directly from the public arXiv API. AI features use your locally installed CLI tools.
+- **Fully local** — All data lives in a single SQLite file on your machine. No accounts, no cloud sync, no tracking.
+- **Terminal-native** — A rich CLI and a full TUI, built with Typer and Textual. Works over SSH.
+- **Composable** — Pipe exports to other tools, integrate with arxivterminal or arxiv-doc-builder, or build your own workflow.
 
 ## Features
 
@@ -28,23 +41,41 @@ cd arXiv_explorer
 uv sync
 ```
 
-## Quick Start
+### Shell Completion
 
 ```bash
-# Set up preferred categories
+# fish
+axp --install-completion fish
+
+# bash
+axp --install-completion bash
+
+# zsh
+axp --install-completion zsh
+```
+
+## Quick Demo
+
+```bash
+# 1. Tell arXiv Explorer what you're interested in
 axp prefs add-category hep-ph --priority 2
 axp prefs add-category cs.AI
+axp prefs add-keyword "deep learning" --weight 1.5
 
-# Fetch and rank recent papers
+# 2. Fetch and rank the last week's papers
 axp daily --days 7 --limit 10
 
-# Search arXiv
-axp search "quantum computing"
-
-# Mark a paper as interesting (improves future recommendations)
+# 3. Found something interesting? Like it — this trains the recommender
 axp like 2501.12345
 
-# Launch the TUI
+# 4. Get an AI summary (uses your configured provider)
+axp show 2501.12345 --summary
+
+# 5. Organize into a reading list
+axp list create "GNN papers"
+axp list add "GNN papers" 2501.12345
+
+# 6. Or just launch the TUI for a full interactive experience
 axp tui
 ```
 
@@ -160,6 +191,21 @@ axp config test
 
 Summarization and translation are available in both CLI (`axp show -s`, `axp translate`) and TUI (`s` / `t` keys in paper detail).
 
+## Comparison
+
+Different tools serve different workflows. [arxiv-sanity-lite](https://github.com/karpathy/arxiv-sanity-lite) pioneered TF-IDF-based paper recommendations and remains the gold standard for web-based discovery. arXiv Explorer brings a similar approach to the terminal.
+
+| | arxiv-sanity-lite | arXiv Explorer |
+|---|---|---|
+| **Interface** | Web UI | CLI + TUI (works over SSH) |
+| **Recommendation** | TF-IDF (web) | TF-IDF (local, learns per session) |
+| **Setup** | Server deployment | `uv sync` and go |
+| **Data storage** | PostgreSQL + S3 | Single SQLite file |
+| **AI summaries** | No | Yes (pluggable providers) |
+| **Reading lists & notes** | No | Yes |
+| **Export** | No | Markdown, JSON, CSV |
+| **Best for** | Browsing with a team | Solo terminal workflow |
+
 ## Integration
 
 - **[arxivterminal](https://github.com/Axect/arxivterminal)** — Reads from its local paper database (read-only)
@@ -168,6 +214,10 @@ Summarization and translation are available in both CLI (`axp show -s`, `axp tra
 ## Data Storage
 
 All data is stored locally in SQLite at `~/.config/arxiv-explorer/explorer.db`. No cloud sync.
+
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for development setup and guidelines.
 
 ## License
 
