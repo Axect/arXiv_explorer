@@ -11,7 +11,7 @@ uv sync
 ## First Time Setup
 
 ```bash
-# Add your favorite arXiv categories (higher priority = stronger weight)
+# Add your favorite arXiv categories
 axp prefs add-category hep-ph --priority 2
 axp prefs add-category cs.AI --priority 1
 axp prefs add-category quant-ph
@@ -23,6 +23,12 @@ axp prefs add-keyword "machine learning" --weight 2.0
 # View your settings
 axp prefs
 ```
+
+> **How priority and weight affect recommendations**
+>
+> - **Category priority** (default: 1) — Priorities are normalized relative to each other. If you set hep-ph=2 and cs.AI=1, hep-ph papers receive twice the category matching bonus. The category score contributes 20% of the total recommendation score.
+> - **Keyword weight** (default: 1.0) — Weights are applied directly as a multiplier. A keyword with weight 2.0 contributes twice as much as one with weight 1.0 when found in a paper. The keyword score contributes 10% of the total recommendation score.
+> - Categories with no explicit `--priority` default to 1; keywords with no `--weight` default to 1.0.
 
 ### Configure AI Provider (Optional)
 
