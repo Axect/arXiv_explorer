@@ -54,32 +54,35 @@ axp --install-completion bash
 axp --install-completion zsh
 ```
 
-## Quick Demo
+## Quick Start
 
 ```bash
-# 1. Tell arXiv Explorer what you're interested in
+# 1. Set your research interests
 axp prefs add-category hep-ph --priority 2
-axp prefs add-category cs.AI
 axp prefs add-keyword "deep learning" --weight 1.5
 
-# 2. Fetch and rank the last week's papers
+# 2. Fetch and rank recent papers
 axp daily --days 7 --limit 10
 
-# 3. Found something interesting? Like it — this trains the recommender
-axp like 2501.12345
-
-# 4. Get an AI summary (uses your configured provider)
-axp show 2501.12345 --summary
-
-# 5. Organize into a reading list
-axp list create "GNN papers"
-axp list add "GNN papers" 2501.12345
-
-# 6. Or just launch the TUI for a full interactive experience
+# 3. Launch the TUI for the full experience
 axp tui
 ```
 
 See [QUICKSTART.md](QUICKSTART.md) for a full walkthrough.
+
+## TUI
+
+Launch with `axp tui`. The terminal UI provides a full interactive experience with five tabs:
+
+| Tab | Key | Description |
+|-----|-----|-------------|
+| **Daily** | `1` | Browse personalized papers with detail panel |
+| **Search** | `2` | Search arXiv interactively |
+| **Lists** | `3` | Manage reading lists and track status |
+| **Notes** | `4` | Browse and filter paper notes |
+| **Prefs** | `5` | Manage categories, keywords, and AI settings |
+
+**Key bindings**: `Enter` open detail / `l` like / `d` dislike / `s` summarize / `t` translate / `n` note / `a` add to list / `r` refresh / `q` quit
 
 ## CLI Reference
 
@@ -118,19 +121,24 @@ See [QUICKSTART.md](QUICKSTART.md) for a full walkthrough.
 | `axp config set-language LANG` | Change display language (en, ko) |
 | `axp config test` | Test current provider connection |
 
-## TUI
+## AI Providers
 
-Launch with `axp tui`. The terminal UI provides a full interactive experience with five tabs:
+AI features (summarization and translation) call external CLI tools via subprocess — no API keys are stored in the application.
 
-| Tab | Key | Description |
-|-----|-----|-------------|
-| **Daily** | `1` | Browse personalized papers with detail panel |
-| **Search** | `2` | Search arXiv interactively |
-| **Lists** | `3` | Manage reading lists and track status |
-| **Notes** | `4` | Browse and filter paper notes |
-| **Prefs** | `5` | Manage categories, keywords, and AI settings |
+| Provider | CLI command | Invocation | Default model |
+|----------|------------|------------|---------------|
+| **Gemini** | `gemini` | `gemini -m MODEL -p PROMPT` | (provider default) |
+| **Claude** | `claude` | `claude --model MODEL -p PROMPT --output-format text` | (provider default) |
+| **Codex** (OpenAI) | `codex` | `codex --model MODEL --prompt PROMPT` | (provider default) |
+| **Ollama** | `ollama` | `ollama run MODEL PROMPT` | `llama3.2` |
+| **OpenCode** | `opencode` | `opencode run --model MODEL PROMPT` | (provider default) |
+| **Custom** | user-defined | template with `{prompt}` and optional `{model}` placeholders | — |
 
-**Key bindings**: `Enter` open detail / `l` like / `d` dislike / `s` summarize / `t` translate / `n` note / `a` add to list / `r` refresh / `q` quit
+```bash
+axp config set-provider claude          # Switch provider
+axp config set-model "claude-sonnet-4-5-20250929"  # Override model
+axp config test                         # Verify connection
+```
 
 ## Architecture
 
@@ -143,53 +151,7 @@ src/arxiv_explorer/
   utils/      # Display helpers
 ```
 
-**Recommendation Algorithm** — Papers are scored using a weighted combination of:
-- Content similarity (50%) — TF-IDF cosine similarity to liked papers
-- Category matching (20%) — Priority-weighted category overlap
-- Keyword matching (10%) — Weighted keyword presence
-- Recency bonus (5%) — Papers published within the last 30 days
-
-## AI Providers
-
-AI features (summarization and translation) work by calling external CLI tools via subprocess. No API keys are stored in the application — each tool manages its own authentication.
-
-| Provider | CLI command | Invocation | Default model |
-|----------|------------|------------|---------------|
-| **Gemini** | `gemini` | `gemini -m MODEL -p PROMPT` | (provider default) |
-| **Claude** | `claude` | `claude --model MODEL -p PROMPT --output-format text` | (provider default) |
-| **Codex** (OpenAI) | `codex` | `codex --model MODEL --prompt PROMPT` | (provider default) |
-| **Ollama** | `ollama` | `ollama run MODEL PROMPT` | `llama3.2` |
-| **OpenCode** | `opencode` | `opencode run --model MODEL PROMPT` | (provider default) |
-| **Custom** | user-defined | template with `{prompt}` and optional `{model}` placeholders | — |
-
-### Setup
-
-```bash
-# Check which providers are available on your system
-axp config show
-
-# Switch to a different provider
-axp config set-provider claude
-
-# Override the default model
-axp config set-model "claude-sonnet-4-5-20250929"
-
-# Set a custom command template
-axp config set-custom "my-ai -m {model} -p {prompt}"
-axp config set-provider custom
-
-# Verify that the provider works
-axp config test
-```
-
-### How it works
-
-1. The active provider receives a structured prompt requesting JSON output
-2. The CLI tool processes the prompt using its own API key / local model
-3. arXiv Explorer parses the JSON response and caches the result in SQLite
-4. Subsequent requests for the same paper return instantly from cache
-
-Summarization and translation are available in both CLI (`axp show -s`, `axp translate`) and TUI (`s` / `t` keys in paper detail).
+**Recommendation** — TF-IDF cosine similarity (50%) + category priority (20%) + keyword matching (10%) + recency bonus (5%).
 
 ## Comparison
 
