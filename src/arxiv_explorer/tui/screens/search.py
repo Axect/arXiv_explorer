@@ -69,6 +69,7 @@ class SearchPane(Vertical):
         ("d", "dislike", "Dislike"),
         ("s", "summarize", "Summarize"),
         ("t", "translate", "Translate"),
+        ("w", "review", "Review"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -87,6 +88,7 @@ class SearchPane(Vertical):
                     yield Button("Dislike [d]", id="btn-s-dislike", variant="error")
                     yield Button("Summarize [s]", id="btn-s-summarize", variant="warning")
                     yield Button("Translate [t]", id="btn-s-translate")
+                    yield Button("Review [w]", id="btn-s-review", variant="primary")
                 yield Static("Enter a search query", id="search-status")
             yield PaperPanel(id="search-panel")
 
@@ -120,6 +122,10 @@ class SearchPane(Vertical):
     @on(Button.Pressed, "#btn-s-translate")
     def _on_translate_clicked(self) -> None:
         self.action_translate()
+
+    @on(Button.Pressed, "#btn-s-review")
+    def _on_review_clicked(self) -> None:
+        self.action_review()
 
     @on(PaperTable.PaperHighlighted)
     def _on_paper_highlighted(self, event: PaperTable.PaperHighlighted) -> None:
@@ -248,3 +254,11 @@ class SearchPane(Vertical):
         panel = self.query_one("#search-panel", PaperPanel)
         panel.show_translation(translation)
         self._set_status(f"Translation done: {rec.paper.arxiv_id}")
+
+    def action_review(self) -> None:
+        rec = self._get_current()
+        if not rec:
+            return
+        from .review_screen import ReviewScreen
+
+        self.app.push_screen(ReviewScreen(rec))
