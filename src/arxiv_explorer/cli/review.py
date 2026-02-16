@@ -56,9 +56,7 @@ def review(
     status: bool = typer.Option(
         False, "--status", "-s", help="Show cached review status without generating"
     ),
-    delete: bool = typer.Option(
-        False, "--delete", help="Delete cached review for this paper"
-    ),
+    delete: bool = typer.Option(False, "--delete", help="Delete cached review for this paper"),
 ):
     """Generate a comprehensive AI review of an arXiv paper.
 
@@ -98,9 +96,7 @@ def review(
                     icon = "[green]\u2714[/green]"
                 else:
                     icon = "[dim]\u2022[/dim]"
-                console.print(
-                    f"  {icon} {_SECTION_NAMES.get(st, st.value)}"
-                )
+                console.print(f"  {icon} {_SECTION_NAMES.get(st, st.value)}")
         return
 
     # Fetch paper metadata
@@ -137,13 +133,9 @@ def review(
         TimeElapsedColumn(),
         console=console,
     ) as progress:
-        task = progress.add_task(
-            "Generating review...", total=len(ReviewSectionType)
-        )
+        task = progress.add_task("Generating review...", total=len(ReviewSectionType))
 
-        def on_start(
-            section_type: ReviewSectionType, idx: int, total: int
-        ) -> None:
+        def on_start(section_type: ReviewSectionType, idx: int, total: int) -> None:
             name = _SECTION_NAMES.get(section_type, section_type.value)
             progress.update(task, description=f"[cyan]{name}[/cyan]...")
 
@@ -169,10 +161,7 @@ def review(
     # Report results
     print_info(f"Sections: {succeeded} succeeded, {failed} failed")
     if paper_review.source_type == "abstract":
-        print_info(
-            "Note: Full text was not available."
-            " Review is based on abstract only."
-        )
+        print_info("Note: Full text was not available. Review is based on abstract only.")
 
     # Resolve language
     target_lang = Language.EN
@@ -182,10 +171,8 @@ def review(
                 target_lang = Language(language)
             except ValueError:
                 supported = ", ".join(lang.value for lang in Language)
-                print_error(
-                    f"Unknown language: {language}. Supported: {supported}"
-                )
-                raise typer.Exit(1)
+                print_error(f"Unknown language: {language}. Supported: {supported}")
+                raise typer.Exit(1) from None
         else:
             target_lang = SettingsService().get_language()
 

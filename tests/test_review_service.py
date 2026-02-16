@@ -1,19 +1,16 @@
 """Tests for the paper review service."""
 
 import json
-from datetime import datetime
 from unittest.mock import MagicMock
 
 import pytest
 
 from arxiv_explorer.core.config import Config
 from arxiv_explorer.core.models import (
-    Paper,
     PaperReview,
     ReviewSectionType,
 )
 from arxiv_explorer.services.review_service import PaperReviewService
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────
 
@@ -242,9 +239,7 @@ class TestReviewCaching:
         )
         assert review_service.delete_review("2401.00001") is True
         assert (
-            review_service._get_cached_section(
-                "2401.00001", ReviewSectionType.EXECUTIVE_SUMMARY
-            )
+            review_service._get_cached_section("2401.00001", ReviewSectionType.EXECUTIVE_SUMMARY)
             is None
         )
 
@@ -261,7 +256,9 @@ class TestReviewCaching:
         cached_review = review_service.get_cached_review("2401.00001")
         assert cached_review is not None
         assert ReviewSectionType.EXECUTIVE_SUMMARY in cached_review.sections
-        assert cached_review.sections[ReviewSectionType.EXECUTIVE_SUMMARY]["tldr"] == "cached review"
+        assert (
+            cached_review.sections[ReviewSectionType.EXECUTIVE_SUMMARY]["tldr"] == "cached review"
+        )
 
     def test_get_cached_review_none(self, tmp_config: Config, review_service):
         assert review_service.get_cached_review("9999.99999") is None
@@ -332,9 +329,7 @@ class TestMarkdownRendering:
             sample_paper,
             {
                 ReviewSectionType.GLOSSARY: {
-                    "terms": [
-                        {"term": "CNN", "definition": "Convolutional Neural Network"}
-                    ]
+                    "terms": [{"term": "CNN", "definition": "Convolutional Neural Network"}]
                 }
             },
         )
@@ -482,9 +477,7 @@ class TestGenerateReviewMocked:
             ReviewSectionType.QUESTIONS: {"questions": []},
         }
 
-    def test_generates_with_abstract_only(
-        self, tmp_config: Config, sample_paper
-    ):
+    def test_generates_with_abstract_only(self, tmp_config: Config, sample_paper):
         service = PaperReviewService()
         service._extract_full_text = MagicMock(return_value=None)
 
@@ -526,10 +519,7 @@ class TestGenerateReviewMocked:
 
         review = service.generate_review(sample_paper)
         # Should have used cache for executive_summary
-        assert (
-            review.sections[ReviewSectionType.EXECUTIVE_SUMMARY]["tldr"]
-            == "Cached"
-        )
+        assert review.sections[ReviewSectionType.EXECUTIVE_SUMMARY]["tldr"] == "Cached"
         # AI should have been called for remaining sections, minus:
         # - 1 cached (executive_summary)
         # - 3 empty sections in abstract-only mode (figures, tables, math)
@@ -597,9 +587,7 @@ class TestGenerateReviewMocked:
         assert len(complete_calls) == len(ReviewSectionType)
         assert all(s for _, s in complete_calls)
 
-    def test_returns_none_on_total_failure(
-        self, tmp_config: Config, sample_paper
-    ):
+    def test_returns_none_on_total_failure(self, tmp_config: Config, sample_paper):
         service = PaperReviewService()
         service._extract_full_text = MagicMock(return_value=None)
         service._invoke_ai = MagicMock(return_value=None)
@@ -620,9 +608,7 @@ class TestGenerateReviewMocked:
 class TestPromptBuilders:
     """Test that prompt builders produce valid prompts."""
 
-    def test_all_section_types_have_prompt_builder(
-        self, review_service, sample_paper
-    ):
+    def test_all_section_types_have_prompt_builder(self, review_service, sample_paper):
         """Every section type in the pipeline must have a prompt builder."""
         for section_type, _ in review_service.SECTION_PIPELINE:
             prompt = review_service._build_prompt(
@@ -638,9 +624,7 @@ class TestPromptBuilders:
             assert len(prompt) > 0
             assert sample_paper.title in prompt
 
-    def test_methodology_uses_relevant_sections(
-        self, review_service, sample_paper
-    ):
+    def test_methodology_uses_relevant_sections(self, review_service, sample_paper):
         paper_sections = {
             "_preamble": "title",
             "1. Introduction": "intro text",
@@ -676,13 +660,9 @@ class TestEmptySectionData:
         assert data == {"tables": []}
 
     def test_math_empty(self):
-        data = PaperReviewService._empty_section_data(
-            ReviewSectionType.MATH_FORMULATIONS
-        )
+        data = PaperReviewService._empty_section_data(ReviewSectionType.MATH_FORMULATIONS)
         assert data == {"formulations": []}
 
     def test_other_empty(self):
-        data = PaperReviewService._empty_section_data(
-            ReviewSectionType.EXECUTIVE_SUMMARY
-        )
+        data = PaperReviewService._empty_section_data(ReviewSectionType.EXECUTIVE_SUMMARY)
         assert data == {}

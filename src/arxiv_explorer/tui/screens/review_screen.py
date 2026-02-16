@@ -87,18 +87,12 @@ class ReviewScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical():
-            yield Static(
-                f"Review: {self.rec.paper.title}", classes="review-title"
-            )
+            yield Static(f"Review: {self.rec.paper.title}", classes="review-title")
             yield Static("Loading...", id="review-status")
             yield Markdown("", id="review-content")
             with Horizontal(classes="review-buttons"):
-                yield Button(
-                    "Save [s]", id="review-save", variant="primary"
-                )
-                yield Button(
-                    "Translate [t]", id="review-translate", variant="warning"
-                )
+                yield Button("Save [s]", id="review-save", variant="primary")
+                yield Button("Translate [t]", id="review-translate", variant="warning")
                 yield Button("Close [esc]", id="review-close")
 
     def on_mount(self) -> None:
@@ -135,9 +129,7 @@ class ReviewScreen(ModalScreen):
 
             if cached.is_complete:
                 done = len(cached.sections)
-                self.app.call_from_thread(
-                    self._set_status, f"Loaded from cache — {done} sections"
-                )
+                self.app.call_from_thread(self._set_status, f"Loaded from cache — {done} sections")
                 self._generating = False
                 return
 
@@ -145,14 +137,11 @@ class ReviewScreen(ModalScreen):
             missing = cached.missing_sections
             self.app.call_from_thread(
                 self._set_status,
-                f"Loaded {len(cached.sections)} sections"
-                f" — generating {len(missing)} remaining...",
+                f"Loaded {len(cached.sections)} sections — generating {len(missing)} remaining...",
             )
 
         # Generate (all or remaining) with progress
-        def on_start(
-            section_type: ReviewSectionType, idx: int, total: int
-        ) -> None:
+        def on_start(section_type: ReviewSectionType, idx: int, total: int) -> None:
             name = _SECTION_NAMES.get(section_type, section_type.value)
             self.app.call_from_thread(
                 self._set_status,
@@ -182,13 +171,10 @@ class ReviewScreen(ModalScreen):
             self.app.call_from_thread(self._show_review, md)
             self.app.call_from_thread(
                 self._set_status,
-                f"Done — {succeeded[0]} sections"
-                + (f" ({failed[0]} failed)" if failed[0] else ""),
+                f"Done — {succeeded[0]} sections" + (f" ({failed[0]} failed)" if failed[0] else ""),
             )
         else:
-            self.app.call_from_thread(
-                self._set_status, "Review generation failed"
-            )
+            self.app.call_from_thread(self._set_status, "Review generation failed")
             self.app.call_from_thread(
                 self.app.notify,
                 "Could not generate review",
@@ -244,9 +230,7 @@ class ReviewScreen(ModalScreen):
             trans_path.write_text(self._translated_md, encoding="utf-8")
             saved_files.append(str(trans_path))
 
-        self.app.call_from_thread(
-            self.app.notify, f"Saved: {', '.join(saved_files)}"
-        )
+        self.app.call_from_thread(self.app.notify, f"Saved: {', '.join(saved_files)}")
 
     # ── Translate ─────────────────────────────────────────────────────
 
@@ -271,7 +255,5 @@ class ReviewScreen(ModalScreen):
         self._translated_md = md
         self._translated_lang = lang
         self.app.call_from_thread(self._show_review, md)
-        self.app.call_from_thread(
-            self._set_status, f"Translated to {lang.value}"
-        )
+        self.app.call_from_thread(self._set_status, f"Translated to {lang.value}")
         self.app.call_from_thread(self.app.notify, "Translation complete")
