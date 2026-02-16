@@ -23,6 +23,7 @@ class PaperDetailScreen(ModalScreen):
         ("d", "dislike", "Dislike"),
         ("s", "summarize", "Summarize"),
         ("t", "translate", "Translate"),
+        ("w", "review", "Review"),
         ("n", "add_note", "Note"),
         ("a", "add_to_list", "Add to List"),
     ]
@@ -60,6 +61,7 @@ class PaperDetailScreen(ModalScreen):
                 yield Button("Dislike [d]", id="md-dislike", variant="error")
                 yield Button("Summarize [s]", id="md-summarize", variant="warning")
                 yield Button("Translate [t]", id="md-translate")
+                yield Button("Review [w]", id="md-review", variant="primary")
                 yield Button("Note [n]", id="md-note")
                 yield Button("List [a]", id="md-list")
                 yield Button("Close", id="md-close")
@@ -110,6 +112,10 @@ class PaperDetailScreen(ModalScreen):
     @on(Button.Pressed, "#md-translate")
     def _on_translate(self) -> None:
         self.action_translate()
+
+    @on(Button.Pressed, "#md-review")
+    def _on_review(self) -> None:
+        self.action_review()
 
     @on(Button.Pressed, "#md-note")
     def _on_note(self) -> None:
@@ -184,6 +190,11 @@ class PaperDetailScreen(ModalScreen):
             f"[bold magenta]Abstract:[/bold magenta] {translation.translated_abstract}",
         ]
         self.query_one("#detail-translation", Static).update("\n".join(lines))
+
+    def action_review(self) -> None:
+        from .review_screen import ReviewScreen
+
+        self.app.push_screen(ReviewScreen(self.rec))
 
     def action_add_to_list(self) -> None:
         from .list_picker import ListPickerScreen

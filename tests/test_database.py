@@ -18,6 +18,7 @@ EXPECTED_TABLES = {
     "paper_translations",
     "app_settings",
     "papers",
+    "paper_review_sections",
 }
 
 
@@ -60,6 +61,7 @@ class TestInitDb:
             "idx_list_papers_list",
             "idx_translations_arxiv",
             "idx_papers_cached_at",
+            "idx_review_sections_arxiv",
         }
         assert indexes == expected_indexes
 

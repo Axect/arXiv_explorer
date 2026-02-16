@@ -89,6 +89,17 @@ CREATE TABLE IF NOT EXISTS app_settings (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Paper review sections (incremental cache)
+CREATE TABLE IF NOT EXISTS paper_review_sections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    arxiv_id TEXT NOT NULL,
+    section_type TEXT NOT NULL,
+    content_json TEXT NOT NULL,
+    source_type TEXT NOT NULL DEFAULT 'abstract',
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(arxiv_id, section_type)
+);
+
 -- Paper cache
 CREATE TABLE IF NOT EXISTS papers (
     arxiv_id TEXT PRIMARY KEY NOT NULL,
@@ -109,6 +120,7 @@ CREATE INDEX IF NOT EXISTS idx_notes_arxiv ON paper_notes(arxiv_id);
 CREATE INDEX IF NOT EXISTS idx_list_papers_list ON reading_list_papers(list_id);
 CREATE INDEX IF NOT EXISTS idx_translations_arxiv ON paper_translations(arxiv_id);
 CREATE INDEX IF NOT EXISTS idx_papers_cached_at ON papers(cached_at);
+CREATE INDEX IF NOT EXISTS idx_review_sections_arxiv ON paper_review_sections(arxiv_id);
 """
 
 

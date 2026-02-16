@@ -38,6 +38,21 @@ class Language(str, Enum):
     KO = "ko"
 
 
+class ReviewSectionType(str, Enum):
+    EXECUTIVE_SUMMARY = "executive_summary"
+    KEY_CONTRIBUTIONS = "key_contributions"
+    SECTION_SUMMARIES = "section_summaries"
+    METHODOLOGY = "methodology"
+    MATH_FORMULATIONS = "math_formulations"
+    FIGURES = "figures"
+    TABLES = "tables"
+    EXPERIMENTAL_RESULTS = "experimental_results"
+    STRENGTHS_WEAKNESSES = "strengths_weaknesses"
+    RELATED_WORK = "related_work"
+    GLOSSARY = "glossary"
+    QUESTIONS = "questions"
+
+
 @dataclass
 class Paper:
     """Paper data model."""
@@ -141,6 +156,41 @@ class KeywordInterest:
     keyword: str
     weight: float = 1.0
     source: str = "explicit"  # 'explicit' or 'inferred'
+
+
+@dataclass
+class ReviewSection:
+    """One section of a paper review, cached individually."""
+
+    id: int
+    arxiv_id: str
+    section_type: ReviewSectionType
+    content_json: str
+    generated_at: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
+class PaperReview:
+    """Assembled paper review."""
+
+    arxiv_id: str
+    title: str
+    authors: list[str]
+    categories: list[str]
+    published: datetime
+    abstract: str
+    sections: dict[ReviewSectionType, dict] = field(default_factory=dict)
+    pdf_url: Optional[str] = None
+    source_type: str = "abstract"
+    generated_at: datetime = field(default_factory=datetime.now)
+
+    @property
+    def is_complete(self) -> bool:
+        return set(self.sections.keys()) == set(ReviewSectionType)
+
+    @property
+    def missing_sections(self) -> list[ReviewSectionType]:
+        return [s for s in ReviewSectionType if s not in self.sections]
 
 
 @dataclass

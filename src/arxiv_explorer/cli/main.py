@@ -39,7 +39,7 @@ def main(
 
 
 # Import and register subcommands
-from . import config, daily, export, lists, notes, preferences, search  # noqa: E402
+from . import config, daily, export, lists, notes, preferences, review, search  # noqa: E402
 
 app.add_typer(preferences.app, name="prefs", help="Preference management")
 app.add_typer(lists.app, name="list", help="Reading list management")
@@ -55,6 +55,7 @@ app.command(name="like")(daily.like)
 app.command(name="dislike")(daily.dislike)
 app.command(name="show")(daily.show)
 app.command(name="translate")(daily.translate)
+app.command(name="review")(review.review)
 
 
 @app.command()
