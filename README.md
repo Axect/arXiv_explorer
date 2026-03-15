@@ -41,38 +41,41 @@ cd arXiv_explorer
 uv sync
 ```
 
+> **Tip:** All commands below use `uv run axp` which works without activating a virtual environment.
+> If you prefer the shorter `axp`, activate the venv first (`source .venv/bin/activate` or `source .venv/bin/activate.fish` for fish) or install globally with `uv tool install -e .`.
+
 ### Shell Completion
 
 ```bash
 # fish
-axp --install-completion fish
+uv run axp --install-completion fish
 
 # bash
-axp --install-completion bash
+uv run axp --install-completion bash
 
 # zsh
-axp --install-completion zsh
+uv run axp --install-completion zsh
 ```
 
 ## Quick Start
 
 ```bash
 # 1. Set your research interests
-axp prefs add-category hep-ph --priority 2
-axp prefs add-keyword "deep learning" --weight 1.5
+uv run axp prefs add-category hep-ph --priority 2
+uv run axp prefs add-keyword "deep learning" --weight 1.5
 
 # 2. Fetch and rank recent papers
-axp daily --days 7 --limit 10
+uv run axp daily --days 7 --limit 10
 
 # 3. Launch the TUI for the full experience
-axp tui
+uv run axp tui
 ```
 
 See [QUICKSTART.md](QUICKSTART.md) for a full walkthrough.
 
 ## TUI
 
-Launch with `axp tui`. The terminal UI provides a full interactive experience with five tabs:
+Launch with `uv run axp tui`. The terminal UI provides a full interactive experience with five tabs:
 
 | Tab | Key | Description |
 |-----|-----|-------------|
@@ -90,36 +93,36 @@ Launch with `axp tui`. The terminal UI provides a full interactive experience wi
 
 | Command | Description |
 |---------|-------------|
-| `axp daily [-d DAYS] [-l LIMIT] [-s]` | Fetch recent papers with personalized ranking |
-| `axp top [-l LIMIT] [-s]` | View top recommended papers (from liked history) |
-| `axp search QUERY [-l LIMIT] [-a]` | Search papers (add `-a` for direct arXiv API) |
+| `uv run axp daily [-d DAYS] [-l LIMIT] [-s]` | Fetch recent papers with personalized ranking |
+| `uv run axp top [-l LIMIT] [-s]` | View top recommended papers (from liked history) |
+| `uv run axp search QUERY [-l LIMIT] [-a]` | Search papers (add `-a` for direct arXiv API) |
 
 ### Paper Interaction
 
 | Command | Description |
 |---------|-------------|
-| `axp show [ARXIV_ID] [-s] [-d] [-t]` | View paper details (or recently liked papers) |
-| `axp like ARXIV_ID [-n NOTE]` | Mark a paper as interesting |
-| `axp dislike ARXIV_ID` | Mark a paper as not interesting |
-| `axp translate ARXIV_ID` | Translate a paper's title and abstract |
+| `uv run axp show [ARXIV_ID] [-s] [-d] [-t]` | View paper details (or recently liked papers) |
+| `uv run axp like ARXIV_ID [-n NOTE]` | Mark a paper as interesting |
+| `uv run axp dislike ARXIV_ID` | Mark a paper as not interesting |
+| `uv run axp translate ARXIV_ID` | Translate a paper's title and abstract |
 
 ### Organization
 
 | Command | Description |
 |---------|-------------|
-| `axp prefs` | View/manage preferred categories and keywords |
-| `axp list` | Manage reading lists (create, add, remove, status) |
-| `axp note` | Manage paper notes (add, show, list) |
-| `axp export` | Export papers/lists to Markdown, JSON, or CSV |
+| `uv run axp prefs` | View/manage preferred categories and keywords |
+| `uv run axp list` | Manage reading lists (create, add, remove, status) |
+| `uv run axp note` | Manage paper notes (add, show, list) |
+| `uv run axp export` | Export papers/lists to Markdown, JSON, or CSV |
 
 ### Configuration
 
 | Command | Description |
 |---------|-------------|
-| `axp config show` | View current AI provider settings |
-| `axp config set-provider PROVIDER` | Change AI provider (gemini, claude, openai, ollama, custom) |
-| `axp config set-language LANG` | Change display language (en, ko) |
-| `axp config test` | Test current provider connection |
+| `uv run axp config show` | View current AI provider settings |
+| `uv run axp config set-provider PROVIDER` | Change AI provider (gemini, claude, openai, ollama, custom) |
+| `uv run axp config set-language LANG` | Change display language (en, ko) |
+| `uv run axp config test` | Test current provider connection |
 
 ## AI Providers
 
@@ -135,9 +138,9 @@ AI features (summarization and translation) call external CLI tools via subproce
 | **Custom** | user-defined | template with `{prompt}` and optional `{model}` placeholders | — |
 
 ```bash
-axp config set-provider claude          # Switch provider
-axp config set-model "claude-sonnet-4-5-20250929"  # Override model
-axp config test                         # Verify connection
+uv run axp config set-provider claude          # Switch provider
+uv run axp config set-model "claude-sonnet-4-5-20250929"  # Override model
+uv run axp config test                         # Verify connection
 ```
 
 ## Architecture
@@ -171,7 +174,7 @@ Different tools serve different workflows. [arxiv-sanity-lite](https://github.co
 ## Integration
 
 - **[arxivterminal](https://github.com/Axect/arxivterminal)** — Reads from its local paper database (read-only)
-- **[arxiv-doc-builder](https://github.com/Axect/arxiv-doc-builder)** — Converts papers to Markdown via `axp export markdown`
+- **[arxiv-doc-builder](https://github.com/Axect/arxiv-doc-builder)** — Converts papers to Markdown via `uv run axp export markdown`
 
 ## Data Storage
 
