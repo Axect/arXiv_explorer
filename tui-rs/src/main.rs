@@ -180,11 +180,11 @@ fn render_tab_content(f: &mut Frame, app: &mut App, area: Rect) {
 
 fn render_key_hints(f: &mut Frame, app: &App, area: Rect) {
     let hints = match app.active_tab {
-        Tab::Daily => " [/] Days  -/= Limit  r Fetch  l Like  d Dislike  b Bookmark  q Quit",
-        Tab::Search => " / Search  l Like  d Dislike  ↑↓ Navigate  q Quit",
-        Tab::Lists => " Tab Focus  n New  f Folder  e Edit  Del Delete  s Sort  r Reload  q Quit",
-        Tab::Notes => " ↑↓ Navigate  Del Delete  r Reload  q Quit",
-        Tab::Prefs => " Tab Section  ↑↓ Select  ←→ Weights  Del Delete  r Reload  q Quit",
+        Tab::Daily => " [/] Days  -/= Limit  [r]efresh  [l]ike  [d]islike  [b]ookmark  [q]uit",
+        Tab::Search => " [/] search  [l]ike  [d]islike  [↑↓] navigate  [q]uit",
+        Tab::Lists => " [Tab] focus  [n]ew  [f]older  [e]dit  [Del]ete  [s]ort  [r]eload  [q]uit",
+        Tab::Notes => " [↑↓] navigate  [Del]ete  [r]eload  [q]uit",
+        Tab::Prefs => " [Tab] section  [↑↓] select  [←→] weights  [p]rovider  lan[g]  [Del]ete  [r]eload  [q]uit",
     };
     let p = Paragraph::new(hints)
         .style(Style::default().fg(TEXT_DIM).bg(SURFACE));
@@ -217,23 +217,26 @@ fn render_daily(f: &mut Frame, app: &mut App, area: Rect) {
         return;
     }
 
-    // Split: 60% table | 40% detail panel
+    // Status bar at top (spans full width)
+    let main_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Min(0)])
+        .split(area);
+
+    // Render status bar across full width
+    render_daily_status(f, app, main_chunks[0]);
+
+    // Below status: 60/40 split
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
-        .split(area);
+        .split(main_chunks[1]);
 
     render_daily_table(f, app, chunks[0]);
     render_daily_detail(f, app, chunks[1]);
 }
 
-fn render_daily_table(f: &mut Frame, app: &mut App, area: Rect) {
-    // Status bar + table
-    let sub = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(1), Constraint::Min(0)])
-        .split(area);
-
+fn render_daily_status(f: &mut Frame, app: &App, area: Rect) {
     let total = app.daily.author_papers.len() + app.daily.scored_papers.len();
     let status = format!(
         " Days: ◀ {} ▶ ([/])  Limit: ◀ {} ▶ (-/=)  │ {} papers  │ r:Fetch",
@@ -241,10 +244,10 @@ fn render_daily_table(f: &mut Frame, app: &mut App, area: Rect) {
     );
     let status_p = Paragraph::new(status)
         .style(Style::default().fg(TEXT_DIM).bg(SURFACE));
-    f.render_widget(status_p, sub[0]);
+    f.render_widget(status_p, area);
+}
 
-    let area = sub[1];
-
+fn render_daily_table(f: &mut Frame, app: &mut App, area: Rect) {
     // Build rows: author section header + papers, then scored section header + papers
     let author_len = app.daily.author_papers.len();
     let scored_len = app.daily.scored_papers.len();
@@ -920,7 +923,8 @@ fn render_prefs(f: &mut Frame, app: &App, area: Rect) {
             let mut lines: Vec<Line> = Vec::new();
             for (i, cat) in app.prefs.categories.iter().enumerate() {
                 let is_sel = app.prefs.focus_section == 0 && app.prefs.section_selected[0] == i;
-                let label = format!("{:<12} {}", truncate_str(&cat.category, 12), cat.priority);
+                let stars = stars_display(cat.priority);
+                let label = format!("{:<12} {}", truncate_str(&cat.category, 12), stars);
                 let style = if is_sel {
                     Style::default().fg(BG).bg(ACCENT).bold()
                 } else {
@@ -1196,7 +1200,7 @@ fn render_paper_detail(f: &mut Frame, app: &App) {
 
     // Key hints at bottom
     let hints = Paragraph::new(
-        " [s]ummarize [t]ranslate [w]review [l]ike [d]islike [b]mark [↑↓/jk]scroll [Esc]close",
+        " [s]ummarize  [t]ranslate  [w]review  [l]ike  [d]islike  [b]ookmark  [Esc] close",
     )
     .style(Style::default().fg(TEXT_DIM).bg(SURFACE));
     f.render_widget(hints, chunks[1]);

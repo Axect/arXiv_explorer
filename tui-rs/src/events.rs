@@ -677,6 +677,22 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                 .get_setting("language", "en")
                 .unwrap_or_else(|_| "en".to_string());
         }
+        KeyCode::Char('p') => {
+            let providers = ["gemini", "claude", "ollama", "openai", "opencode", "custom"];
+            let current = providers.iter().position(|&p| p == app.prefs.provider).unwrap_or(0);
+            let next = (current + 1) % providers.len();
+            app.prefs.provider = providers[next].to_string();
+            let _ = app.db.set_setting("ai_provider", providers[next]);
+            app.push_toast(format!("Provider: {}", providers[next]), false);
+        }
+        KeyCode::Char('g') => {
+            let langs = ["en", "ko"];
+            let current = langs.iter().position(|&l| l == app.prefs.language).unwrap_or(0);
+            let next = (current + 1) % langs.len();
+            app.prefs.language = langs[next].to_string();
+            let _ = app.db.set_setting("language", langs[next]);
+            app.push_toast(format!("Language: {}", langs[next]), false);
+        }
         _ => {}
     }
 }
