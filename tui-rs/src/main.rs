@@ -966,7 +966,7 @@ fn render_prefs(f: &mut Frame, app: &App, area: Rect) {
     // Categories
     {
         let block = Block::default()
-            .title(" Categories ")
+            .title(" Categories [a:Add ←→:Pri Del:Rm] ")
             .borders(Borders::ALL)
             .border_style(sec_border(0))
             .style(Style::default().bg(BG));
@@ -998,7 +998,7 @@ fn render_prefs(f: &mut Frame, app: &App, area: Rect) {
     // Keywords
     {
         let block = Block::default()
-            .title(" Keywords ")
+            .title(" Keywords [a:Add ←→:Wt Del:Rm] ")
             .borders(Borders::ALL)
             .border_style(sec_border(1))
             .style(Style::default().bg(BG));
