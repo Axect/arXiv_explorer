@@ -42,7 +42,6 @@ class ReadingListsPane(Vertical):
         height: 1fr;
     }
     ReadingListsPane #rl-left-hints {
-        dock: bottom;
         height: 1;
         padding: 0 1;
         color: $text-muted;
@@ -61,7 +60,6 @@ class ReadingListsPane(Vertical):
         height: 1fr;
     }
     ReadingListsPane #rl-paper-hints {
-        dock: bottom;
         height: 1;
         padding: 0 1;
         color: $text-muted;
