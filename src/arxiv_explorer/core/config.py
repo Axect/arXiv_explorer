@@ -19,12 +19,6 @@ class Config:
     default_fetch_days: int = 1
     default_result_limit: int = 20
 
-    # Recommendation weights
-    content_weight: float = 0.5
-    category_weight: float = 0.2
-    keyword_weight: float = 0.1
-    recency_weight: float = 0.05
-
     @classmethod
     def default(cls) -> "Config":
         """Load default configuration."""

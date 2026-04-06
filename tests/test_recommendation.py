@@ -37,7 +37,7 @@ class TestCategoryScoring:
         )
         results = engine.score_papers([paper], None, sample_categories, [])
         # Score should be very small (only recency if applicable, no category)
-        assert results[0].score < tmp_config.category_weight
+        assert results[0].score < 0.20  # default category weight (20%)
 
 
 class TestKeywordScoring:
