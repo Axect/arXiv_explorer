@@ -14,6 +14,7 @@ use ratatui::{
 mod app;
 mod commands;
 mod db;
+mod categories;
 mod events;
 
 use app::{App, ConfirmAction, Tab};
@@ -1069,6 +1070,7 @@ fn render_prefs(f: &mut Frame, app: &App, area: Rect) {
 
         let labels = ["Content", "Category", "Keyword", "Recency"];
         let weights = app.prefs.weights;
+        let total: i64 = weights.iter().sum();
         let mut lines: Vec<Line> = Vec::new();
         for (i, label) in labels.iter().enumerate() {
             let is_sel = app.prefs.focus_section == 3 && app.prefs.section_selected[3] == i;
@@ -1086,6 +1088,18 @@ fn render_prefs(f: &mut Frame, app: &App, area: Rect) {
                 Span::styled(bar, style),
             ]));
         }
+        // Total line with color indicator
+        let total_color = if total == 100 { SUCCESS_COLOR } else { ERROR_COLOR };
+        let total_hint = if total == 100 {
+            String::new()
+        } else {
+            " (Tab to normalize)".to_string()
+        };
+        lines.push(Line::from(vec![
+            Span::styled("  ", Style::default()),
+            Span::styled(format!("Total: {total}%{total_hint}"), Style::default().fg(total_color)),
+            Span::styled("  ←→:±1  D:Default", Style::default().fg(TEXT_DIM)),
+        ]));
         f.render_widget(Paragraph::new(lines).style(Style::default().bg(BG)), inner);
     }
 
@@ -1467,7 +1481,7 @@ fn render_jobs_panel(f: &mut Frame, app: &App) {
                     ("✗", format!("Failed: {short}"), ERROR_COLOR)
                 }
             };
-            let elapsed = job.started_at.elapsed().as_secs();
+            let elapsed = job.elapsed_secs.unwrap_or_else(|| job.started_at.elapsed().as_secs());
             let elapsed_str = if elapsed < 60 {
                 format!("{:>3}s", elapsed)
             } else {
