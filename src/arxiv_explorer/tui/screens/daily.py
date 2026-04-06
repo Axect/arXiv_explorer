@@ -184,9 +184,7 @@ class DailyPane(Vertical):
         except Exception:
             pass
 
-        self.app.call_from_thread(
-            self._update_papers, all_papers, author_ids, bookmarked
-        )
+        self.app.call_from_thread(self._update_papers, all_papers, author_ids, bookmarked)
 
     def _update_papers(
         self,
