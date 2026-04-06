@@ -38,7 +38,7 @@ pub fn handle_key(app: &mut App, key: KeyCode) -> bool {
 
 pub fn handle_daily_key(app: &mut App, key: KeyCode) {
     let total = app.daily.author_papers.len() + app.daily.scored_papers.len();
-    if total == 0 && !matches!(key, KeyCode::Char('r') | KeyCode::Char('R')) {
+    if total == 0 && !matches!(key, KeyCode::Char('r') | KeyCode::Char('R') | KeyCode::Char('[') | KeyCode::Char(']') | KeyCode::Char('-') | KeyCode::Char('=')) {
         return;
     }
 
