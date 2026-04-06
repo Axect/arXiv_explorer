@@ -1,15 +1,14 @@
 """Tests for reading list hierarchy (parent_id, is_folder, is_system)."""
 
 import sqlite3
-from datetime import datetime, date
-from pathlib import Path
+from datetime import date, datetime
 from unittest.mock import patch
 
 import pytest
 
-from arxiv_explorer.core.database import init_db, get_connection
-from arxiv_explorer.core.models import ReadingList
 from arxiv_explorer.core.config import Config
+from arxiv_explorer.core.database import init_db
+from arxiv_explorer.core.models import ReadingList
 from arxiv_explorer.services.reading_list_service import ReadingListService
 
 
@@ -48,62 +47,66 @@ class TestHierarchySchema:
 
     def test_parent_id_foreign_key(self, db):
         with sqlite3.connect(db) as conn:
-            conn.execute(
-                "INSERT INTO reading_lists (name, is_folder) VALUES ('parent', 1)"
-            )
-            parent_id = conn.execute(
-                "SELECT id FROM reading_lists WHERE name='parent'"
-            ).fetchone()[0]
+            conn.execute("INSERT INTO reading_lists (name, is_folder) VALUES ('parent', 1)")
+            parent_id = conn.execute("SELECT id FROM reading_lists WHERE name='parent'").fetchone()[
+                0
+            ]
             conn.execute(
                 "INSERT INTO reading_lists (name, parent_id) VALUES ('child', ?)",
                 (parent_id,),
             )
-            row = conn.execute(
-                "SELECT parent_id FROM reading_lists WHERE name='child'"
-            ).fetchone()
+            row = conn.execute("SELECT parent_id FROM reading_lists WHERE name='child'").fetchone()
             assert row[0] == parent_id
 
     def test_cascade_delete(self, db):
         with sqlite3.connect(db) as conn:
             conn.execute("PRAGMA foreign_keys = ON")
-            conn.execute(
-                "INSERT INTO reading_lists (name, is_folder) VALUES ('parent', 1)"
-            )
-            parent_id = conn.execute(
-                "SELECT id FROM reading_lists WHERE name='parent'"
-            ).fetchone()[0]
+            conn.execute("INSERT INTO reading_lists (name, is_folder) VALUES ('parent', 1)")
+            parent_id = conn.execute("SELECT id FROM reading_lists WHERE name='parent'").fetchone()[
+                0
+            ]
             conn.execute(
                 "INSERT INTO reading_lists (name, parent_id) VALUES ('child', ?)",
                 (parent_id,),
             )
             conn.execute("DELETE FROM reading_lists WHERE name='parent'")
-            row = conn.execute(
-                "SELECT * FROM reading_lists WHERE name='child'"
-            ).fetchone()
+            row = conn.execute("SELECT * FROM reading_lists WHERE name='child'").fetchone()
             assert row is None
 
 
 class TestReadingListModel:
     def test_has_parent_id(self):
         rl = ReadingList(
-            id=1, name="test", description=None,
-            parent_id=None, is_folder=False, is_system=False,
+            id=1,
+            name="test",
+            description=None,
+            parent_id=None,
+            is_folder=False,
+            is_system=False,
             created_at=datetime.now(),
         )
         assert rl.parent_id is None
 
     def test_has_is_folder(self):
         rl = ReadingList(
-            id=1, name="folder", description=None,
-            parent_id=None, is_folder=True, is_system=False,
+            id=1,
+            name="folder",
+            description=None,
+            parent_id=None,
+            is_folder=True,
+            is_system=False,
             created_at=datetime.now(),
         )
         assert rl.is_folder is True
 
     def test_has_is_system(self):
         rl = ReadingList(
-            id=1, name="Like", description=None,
-            parent_id=None, is_folder=False, is_system=True,
+            id=1,
+            name="Like",
+            description=None,
+            parent_id=None,
+            is_folder=False,
+            is_system=True,
             created_at=datetime.now(),
         )
         assert rl.is_system is True
@@ -148,10 +151,9 @@ class TestFolderOperations:
 
     def test_rename_system_list_fails(self, svc):
         from arxiv_explorer.core.database import get_connection
+
         with get_connection() as conn:
-            conn.execute(
-                "INSERT INTO reading_lists (name, is_system) VALUES ('Like', 1)"
-            )
+            conn.execute("INSERT INTO reading_lists (name, is_system) VALUES ('Like', 1)")
         like = svc.get_list("Like")
         result = svc.rename_item(like.id, "Favorites")
         assert result is False
