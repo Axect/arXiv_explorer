@@ -175,10 +175,10 @@ fn render_tab_content(f: &mut Frame, app: &mut App, area: Rect) {
 fn render_key_hints(f: &mut Frame, app: &App, area: Rect) {
     let hints = match app.active_tab {
         Tab::Daily => " [/] Days  -/= Limit  r Fetch  l Like  d Dislike  b Bookmark  q Quit",
-        Tab::Search => " ↑/k ↓/j Navigate  / Search  q Quit",
-        Tab::Lists => " ↑/k ↓/j Navigate  Enter Open  q Quit",
-        Tab::Notes => " ↑/k ↓/j Navigate  q Quit",
-        Tab::Prefs => " ↑/k ↓/j Select  ←/h →/l Adjust  q Quit",
+        Tab::Search => " / Search  l Like  d Dislike  ↑↓ Navigate  q Quit",
+        Tab::Lists => " Tab Focus  n New  f Folder  e Edit  Del Delete  s Sort  r Reload  q Quit",
+        Tab::Notes => " ↑↓ Navigate  Del Delete  r Reload  q Quit",
+        Tab::Prefs => " Tab Section  ↑↓ Select  ←→ Weights  Del Delete  r Reload  q Quit",
     };
     let p = Paragraph::new(hints)
         .style(Style::default().fg(TEXT_DIM).bg(SURFACE));
@@ -472,102 +472,594 @@ fn render_daily_detail(f: &mut Frame, app: &App, area: Rect) {
 }
 
 // =============================================================================
-// Placeholder tab renderers
+// Search tab
 // =============================================================================
 
-fn render_search(f: &mut Frame, _app: &App, area: Rect) {
-    let block = Block::default()
-        .title(" Search ")
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(ACCENT))
-        .style(Style::default().bg(BG));
-    let inner = block.inner(area);
-    f.render_widget(block, area);
+fn render_search(f: &mut Frame, app: &App, area: Rect) {
+    // Layout: search bar (1 line) + content below
+    let outer = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Min(0)])
+        .split(area);
 
-    let msg = Paragraph::new("Press [/] to search for papers. (Search coming in Task 4)")
-        .style(Style::default().fg(TEXT_DIM).bg(BG))
-        .alignment(Alignment::Center);
-    f.render_widget(msg, inner);
+    // Search bar
+    let cursor = if app.search.editing { "█" } else { "" };
+    let bar_text = format!(" / Search: {}{}", app.search.query, cursor);
+    let bar_style = if app.search.editing {
+        Style::default().fg(ACCENT).bg(SURFACE).bold()
+    } else {
+        Style::default().fg(TEXT_DIM).bg(SURFACE)
+    };
+    f.render_widget(Paragraph::new(bar_text).style(bar_style), outer[0]);
+
+    // Content area: 60% results table | 40% detail panel
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+        .split(outer[1]);
+
+    // Results table
+    if app.search.loading {
+        let msg = Paragraph::new("Searching…")
+            .style(Style::default().fg(TEXT_DIM).bg(BG))
+            .alignment(Alignment::Center);
+        let block = Block::default()
+            .title(" Results ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(ACCENT))
+            .style(Style::default().bg(BG));
+        let inner = block.inner(chunks[0]);
+        f.render_widget(block, chunks[0]);
+        f.render_widget(msg, inner);
+    } else if app.search.results.is_empty() {
+        let msg = Paragraph::new("Press / to search")
+            .style(Style::default().fg(TEXT_DIM).bg(BG))
+            .alignment(Alignment::Center);
+        let block = Block::default()
+            .title(" Results ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(ACCENT))
+            .style(Style::default().bg(BG));
+        let inner = block.inner(chunks[0]);
+        f.render_widget(block, chunks[0]);
+        f.render_widget(msg, inner);
+    } else {
+        let widths = [
+            Constraint::Length(5),
+            Constraint::Length(14),
+            Constraint::Min(0),
+            Constraint::Length(8),
+            Constraint::Length(5),
+        ];
+        let header = Row::new(vec![
+            Cell::from("#").style(Style::default().fg(ACCENT).bold()),
+            Cell::from("ID").style(Style::default().fg(ACCENT).bold()),
+            Cell::from("Title").style(Style::default().fg(ACCENT).bold()),
+            Cell::from("Cat").style(Style::default().fg(ACCENT).bold()),
+            Cell::from("Score").style(Style::default().fg(ACCENT).bold()),
+        ])
+        .style(Style::default().bg(SURFACE))
+        .height(1);
+
+        let rows: Vec<Row> = app
+            .search
+            .results
+            .iter()
+            .enumerate()
+            .map(|(i, paper)| {
+                let is_sel = app.search.selected == i;
+                let title_trunc = truncate_str(&paper.title, 60);
+                let cat = paper.primary_category();
+                let cat_trunc = truncate_str(cat, 8);
+                let score_str = format!("{:.2}", paper.score);
+                let row_style = if is_sel {
+                    Style::default().fg(BG).bg(ACCENT).bold()
+                } else {
+                    Style::default().fg(TEXT).bg(BG)
+                };
+                Row::new(vec![
+                    Cell::from(format!("{}", i + 1)),
+                    Cell::from(paper.arxiv_id.clone()),
+                    Cell::from(title_trunc),
+                    Cell::from(cat_trunc),
+                    Cell::from(score_str),
+                ])
+                .style(row_style)
+                .height(1)
+            })
+            .collect();
+
+        let table = Table::new(rows, widths)
+            .header(header)
+            .block(
+                Block::default()
+                    .title(" Results ")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(ACCENT))
+                    .style(Style::default().bg(BG)),
+            )
+            .row_highlight_style(Style::default().bg(ACCENT).fg(BG).bold())
+            .column_spacing(1);
+
+        let mut table_state = TableState::default();
+        table_state.select(Some(app.search.selected));
+        f.render_stateful_widget(table, chunks[0], &mut table_state);
+    }
+
+    // Detail panel
+    let detail_block = Block::default()
+        .title(" Detail ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(TEXT_DIM))
+        .style(Style::default().bg(BG));
+    let detail_inner = detail_block.inner(chunks[1]);
+    f.render_widget(detail_block, chunks[1]);
+
+    if let Some(paper) = app.search.results.get(app.search.selected) {
+        let authors_str = paper.authors.join(", ");
+        let cats_str = paper.categories.join(", ");
+        let mut lines: Vec<Line> = Vec::new();
+        lines.push(Line::from(Span::styled(
+            paper.title.clone(),
+            Style::default().fg(TEXT).bold(),
+        )));
+        lines.push(Line::default());
+        lines.push(Line::from(vec![
+            Span::styled("Authors: ", Style::default().fg(ACCENT).bold()),
+            Span::styled(authors_str, Style::default().fg(TEXT)),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("Categories: ", Style::default().fg(ACCENT).bold()),
+            Span::styled(cats_str, Style::default().fg(TEXT)),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("Published: ", Style::default().fg(ACCENT).bold()),
+            Span::styled(paper.published.clone(), Style::default().fg(TEXT)),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("Score: ", Style::default().fg(ACCENT).bold()),
+            Span::styled(format!("{:.4}", paper.score), Style::default().fg(TEXT)),
+        ]));
+        lines.push(Line::default());
+        lines.push(Line::from(Span::styled(
+            "Abstract:",
+            Style::default().fg(ACCENT).bold(),
+        )));
+        lines.push(Line::default());
+        lines.push(Line::from(Span::styled(
+            paper.abstract_text.clone(),
+            Style::default().fg(TEXT),
+        )));
+        let paragraph = Paragraph::new(lines)
+            .style(Style::default().bg(BG))
+            .wrap(Wrap { trim: true });
+        f.render_widget(paragraph, detail_inner);
+    } else if !app.search.results.is_empty() {
+        // no selection yet
+    }
 }
 
-fn render_lists(f: &mut Frame, _app: &App, area: Rect) {
-    let block = Block::default()
+// =============================================================================
+// Lists tab
+// =============================================================================
+
+fn render_lists(f: &mut Frame, app: &App, area: Rect) {
+    // Split 35% list panel | 65% paper panel
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(35), Constraint::Percentage(65)])
+        .split(area);
+
+    // Left panel — list of reading lists
+    let left_border_style = if app.lists.focus_left {
+        Style::default().fg(ACCENT)
+    } else {
+        Style::default().fg(TEXT_DIM)
+    };
+    let left_block = Block::default()
         .title(" Reading Lists ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(ACCENT))
+        .border_style(left_border_style)
         .style(Style::default().bg(BG));
-    let inner = block.inner(area);
-    f.render_widget(block, area);
+    let left_inner = left_block.inner(chunks[0]);
+    f.render_widget(left_block, chunks[0]);
 
-    let msg = Paragraph::new("Press [n] to create a new list. (Lists coming in Task 4)")
-        .style(Style::default().fg(TEXT_DIM).bg(BG))
-        .alignment(Alignment::Center);
-    f.render_widget(msg, inner);
+    if app.lists.items.is_empty() {
+        let msg = Paragraph::new("No lists found.\n[n] new  [f] folder")
+            .style(Style::default().fg(TEXT_DIM).bg(BG));
+        f.render_widget(msg, left_inner);
+    } else {
+        let mut lines: Vec<Line> = Vec::new();
+        for (i, (list, count)) in app.lists.items.iter().enumerate() {
+            let is_sel = app.lists.focus_left && app.lists.selected_list == i;
+            let icon = if list.is_folder { "📁" } else { "📋" };
+            let label = format!("{} {} ({})", icon, list.name, count);
+            let style = if is_sel {
+                Style::default().fg(BG).bg(ACCENT).bold()
+            } else if list.is_system {
+                Style::default().fg(AUTHOR_HL).bg(BG)
+            } else {
+                Style::default().fg(TEXT).bg(BG)
+            };
+            lines.push(Line::from(Span::styled(label, style)));
+        }
+        lines.push(Line::default());
+        lines.push(Line::from(Span::styled(
+            " [n]ew [f]old [Del]delete  Tab→",
+            Style::default().fg(TEXT_DIM),
+        )));
+        let paragraph = Paragraph::new(lines).style(Style::default().bg(BG));
+        f.render_widget(paragraph, left_inner);
+    }
+
+    // Right panel — papers in the selected list
+    let selected_list_name = app
+        .lists
+        .items
+        .get(app.lists.selected_list)
+        .map(|(l, _)| l.name.as_str())
+        .unwrap_or("—");
+    let right_title = format!(" {} — {} papers ", selected_list_name, app.lists.papers.len());
+    let right_border_style = if !app.lists.focus_left {
+        Style::default().fg(ACCENT)
+    } else {
+        Style::default().fg(TEXT_DIM)
+    };
+    let right_block = Block::default()
+        .title(right_title)
+        .borders(Borders::ALL)
+        .border_style(right_border_style)
+        .style(Style::default().bg(BG));
+    let right_inner = right_block.inner(chunks[1]);
+    f.render_widget(right_block, chunks[1]);
+
+    if app.lists.papers.is_empty() {
+        let msg = Paragraph::new("No papers in this list.")
+            .style(Style::default().fg(TEXT_DIM).bg(BG));
+        f.render_widget(msg, right_inner);
+    } else {
+        let widths = [
+            Constraint::Length(4),
+            Constraint::Length(14),
+            Constraint::Min(0),
+            Constraint::Length(8),
+            Constraint::Length(8),
+        ];
+        let header = Row::new(vec![
+            Cell::from("#").style(Style::default().fg(ACCENT).bold()),
+            Cell::from("ID").style(Style::default().fg(ACCENT).bold()),
+            Cell::from("Title").style(Style::default().fg(ACCENT).bold()),
+            Cell::from("Cat").style(Style::default().fg(ACCENT).bold()),
+            Cell::from("Added").style(Style::default().fg(ACCENT).bold()),
+        ])
+        .style(Style::default().bg(SURFACE))
+        .height(1);
+
+        let rows: Vec<Row> = app
+            .lists
+            .papers
+            .iter()
+            .enumerate()
+            .map(|(i, p)| {
+                let is_sel = !app.lists.focus_left && app.lists.selected_paper == i;
+                let title = app
+                    .lists
+                    .paper_details
+                    .get(&p.arxiv_id)
+                    .map(|d| d.title.as_str())
+                    .unwrap_or("—");
+                let cat = app
+                    .lists
+                    .paper_details
+                    .get(&p.arxiv_id)
+                    .and_then(|d| d.categories.first())
+                    .map(|s| s.as_str())
+                    .unwrap_or("—");
+                let added_short = p.added_at.get(..10).unwrap_or(&p.added_at);
+                let row_style = if is_sel {
+                    Style::default().fg(BG).bg(ACCENT).bold()
+                } else {
+                    Style::default().fg(TEXT).bg(BG)
+                };
+                Row::new(vec![
+                    Cell::from(format!("{}", i + 1)),
+                    Cell::from(truncate_str(&p.arxiv_id, 14)),
+                    Cell::from(truncate_str(title, 40)),
+                    Cell::from(truncate_str(cat, 8)),
+                    Cell::from(added_short.to_string()),
+                ])
+                .style(row_style)
+                .height(1)
+            })
+            .collect();
+
+        let table = Table::new(rows, widths)
+            .header(header)
+            .block(Block::default().style(Style::default().bg(BG)))
+            .row_highlight_style(Style::default().bg(ACCENT).fg(BG).bold())
+            .column_spacing(1);
+
+        let mut table_state = TableState::default();
+        if !app.lists.focus_left {
+            table_state.select(Some(app.lists.selected_paper));
+        }
+        f.render_stateful_widget(table, right_inner, &mut table_state);
+    }
 }
 
-fn render_notes(f: &mut Frame, _app: &App, area: Rect) {
-    let block = Block::default()
+// =============================================================================
+// Notes tab
+// =============================================================================
+
+fn render_notes(f: &mut Frame, app: &App, area: Rect) {
+    // Split 35% note list | 65% note content
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(35), Constraint::Percentage(65)])
+        .split(area);
+
+    // Left panel — note list
+    let left_block = Block::default()
         .title(" Notes ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(ACCENT))
         .style(Style::default().bg(BG));
-    let inner = block.inner(area);
-    f.render_widget(block, area);
+    let left_inner = left_block.inner(chunks[0]);
+    f.render_widget(left_block, chunks[0]);
 
-    let msg = Paragraph::new("Press [n] to add a note. (Notes coming in Task 4)")
-        .style(Style::default().fg(TEXT_DIM).bg(BG))
-        .alignment(Alignment::Center);
-    f.render_widget(msg, inner);
-}
-
-fn render_prefs(f: &mut Frame, app: &App, area: Rect) {
-    let block = Block::default()
-        .title(" Preferences ")
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(ACCENT))
-        .style(Style::default().bg(BG));
-    let inner = block.inner(area);
-    f.render_widget(block, area);
-
-    let labels = ["Content", "Category", "Keyword", "Recency"];
-    let weights = app.prefs.weights;
-
-    let mut lines: Vec<Line> = Vec::new();
-    lines.push(Line::from(Span::styled(
-        "Recommendation Weights  (←/h  →/l to adjust)",
-        Style::default().fg(ACCENT).bold(),
-    )));
-    lines.push(Line::default());
-
-    for (i, label) in labels.iter().enumerate() {
-        let is_sel = app.prefs.selected == i;
-        let bar = build_bar(weights[i], 100, 20);
-        let style = if is_sel {
-            Style::default().fg(ACCENT).bold()
-        } else {
-            Style::default().fg(TEXT)
-        };
-        let prefix = if is_sel { "► " } else { "  " };
-        lines.push(Line::from(vec![
-            Span::styled(prefix, style),
-            Span::styled(format!("{:<10}", label), style),
-            Span::styled(format!("{:>3}%  ", weights[i]), style),
-            Span::styled(bar, style),
-        ]));
+    if app.notes.notes.is_empty() {
+        let msg = Paragraph::new("No notes yet.")
+            .style(Style::default().fg(TEXT_DIM).bg(BG));
+        f.render_widget(msg, left_inner);
+    } else {
+        let mut lines: Vec<Line> = Vec::new();
+        for (i, note) in app.notes.notes.iter().enumerate() {
+            let is_sel = app.notes.selected == i;
+            let label = format!("{} [{}]", truncate_str(&note.arxiv_id, 14), note.note_type);
+            let style = if is_sel {
+                Style::default().fg(BG).bg(ACCENT).bold()
+            } else {
+                Style::default().fg(TEXT).bg(BG)
+            };
+            lines.push(Line::from(Span::styled(label, style)));
+        }
+        let paragraph = Paragraph::new(lines).style(Style::default().bg(BG));
+        f.render_widget(paragraph, left_inner);
     }
 
-    lines.push(Line::default());
-    lines.push(Line::from(vec![
-        Span::styled("Provider: ", Style::default().fg(ACCENT).bold()),
-        Span::styled(app.prefs.provider.clone(), Style::default().fg(TEXT)),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("Language: ", Style::default().fg(ACCENT).bold()),
-        Span::styled(app.prefs.language.clone(), Style::default().fg(TEXT)),
-    ]));
+    // Right panel — note content
+    let right_block = Block::default()
+        .title(" Note Content ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(TEXT_DIM))
+        .style(Style::default().bg(BG));
+    let right_inner = right_block.inner(chunks[1]);
+    f.render_widget(right_block, chunks[1]);
 
-    let paragraph = Paragraph::new(lines).style(Style::default().bg(BG));
-    f.render_widget(paragraph, inner);
+    if let Some(note) = app.notes.notes.get(app.notes.selected) {
+        let mut lines: Vec<Line> = Vec::new();
+        lines.push(Line::from(vec![
+            Span::styled("Paper: ", Style::default().fg(ACCENT).bold()),
+            Span::styled(note.arxiv_id.clone(), Style::default().fg(TEXT)),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("Type: ", Style::default().fg(ACCENT).bold()),
+            Span::styled(note.note_type.clone(), Style::default().fg(TEXT)),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("Created: ", Style::default().fg(ACCENT).bold()),
+            Span::styled(
+                note.created_at.get(..10).unwrap_or(&note.created_at).to_string(),
+                Style::default().fg(TEXT_DIM),
+            ),
+        ]));
+        lines.push(Line::default());
+        lines.push(Line::from(Span::styled(
+            note.content.clone(),
+            Style::default().fg(TEXT),
+        )));
+        let paragraph = Paragraph::new(lines)
+            .style(Style::default().bg(BG))
+            .wrap(Wrap { trim: true });
+        f.render_widget(paragraph, right_inner);
+    }
+}
+
+// =============================================================================
+// Prefs tab
+// =============================================================================
+
+fn render_prefs(f: &mut Frame, app: &App, area: Rect) {
+    // Split top (60%) | bottom (40%)
+    let vert = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+        .split(area);
+
+    // Top: 3-column split — categories | keywords | authors
+    let top_cols = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(33),
+            Constraint::Percentage(34),
+            Constraint::Percentage(33),
+        ])
+        .split(vert[0]);
+
+    // Helper: border style for a section
+    let sec_border = |sec: usize| {
+        if app.prefs.focus_section == sec {
+            Style::default().fg(ACCENT)
+        } else {
+            Style::default().fg(TEXT_DIM)
+        }
+    };
+
+    // Categories
+    {
+        let block = Block::default()
+            .title(" Categories ")
+            .borders(Borders::ALL)
+            .border_style(sec_border(0))
+            .style(Style::default().bg(BG));
+        let inner = block.inner(top_cols[0]);
+        f.render_widget(block, top_cols[0]);
+
+        if app.prefs.categories.is_empty() {
+            f.render_widget(
+                Paragraph::new("None").style(Style::default().fg(TEXT_DIM).bg(BG)),
+                inner,
+            );
+        } else {
+            let mut lines: Vec<Line> = Vec::new();
+            for (i, cat) in app.prefs.categories.iter().enumerate() {
+                let is_sel = app.prefs.focus_section == 0 && app.prefs.section_selected[0] == i;
+                let label = format!("{:<12} {}", truncate_str(&cat.category, 12), cat.priority);
+                let style = if is_sel {
+                    Style::default().fg(BG).bg(ACCENT).bold()
+                } else {
+                    Style::default().fg(TEXT).bg(BG)
+                };
+                lines.push(Line::from(Span::styled(label, style)));
+            }
+            f.render_widget(Paragraph::new(lines).style(Style::default().bg(BG)), inner);
+        }
+    }
+
+    // Keywords
+    {
+        let block = Block::default()
+            .title(" Keywords ")
+            .borders(Borders::ALL)
+            .border_style(sec_border(1))
+            .style(Style::default().bg(BG));
+        let inner = block.inner(top_cols[1]);
+        f.render_widget(block, top_cols[1]);
+
+        if app.prefs.keywords.is_empty() {
+            f.render_widget(
+                Paragraph::new("None").style(Style::default().fg(TEXT_DIM).bg(BG)),
+                inner,
+            );
+        } else {
+            let mut lines: Vec<Line> = Vec::new();
+            for (i, kw) in app.prefs.keywords.iter().enumerate() {
+                let is_sel = app.prefs.focus_section == 1 && app.prefs.section_selected[1] == i;
+                let stars = stars_display(kw.weight);
+                let label = format!("{:<12} {}", truncate_str(&kw.keyword, 12), stars);
+                let style = if is_sel {
+                    Style::default().fg(BG).bg(ACCENT).bold()
+                } else {
+                    Style::default().fg(TEXT).bg(BG)
+                };
+                lines.push(Line::from(Span::styled(label, style)));
+            }
+            f.render_widget(Paragraph::new(lines).style(Style::default().bg(BG)), inner);
+        }
+    }
+
+    // Authors
+    {
+        let block = Block::default()
+            .title(" Authors ")
+            .borders(Borders::ALL)
+            .border_style(sec_border(2))
+            .style(Style::default().bg(BG));
+        let inner = block.inner(top_cols[2]);
+        f.render_widget(block, top_cols[2]);
+
+        if app.prefs.authors.is_empty() {
+            f.render_widget(
+                Paragraph::new("None").style(Style::default().fg(TEXT_DIM).bg(BG)),
+                inner,
+            );
+        } else {
+            let mut lines: Vec<Line> = Vec::new();
+            for (i, auth) in app.prefs.authors.iter().enumerate() {
+                let is_sel = app.prefs.focus_section == 2 && app.prefs.section_selected[2] == i;
+                let style = if is_sel {
+                    Style::default().fg(BG).bg(ACCENT).bold()
+                } else {
+                    Style::default().fg(TEXT).bg(BG)
+                };
+                lines.push(Line::from(Span::styled(
+                    truncate_str(&auth.name, 22),
+                    style,
+                )));
+            }
+            f.render_widget(Paragraph::new(lines).style(Style::default().bg(BG)), inner);
+        }
+    }
+
+    // Bottom: 2-column split — weights | config
+    let bot_cols = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+        .split(vert[1]);
+
+    // Weights
+    {
+        let block = Block::default()
+            .title(" Weights ")
+            .borders(Borders::ALL)
+            .border_style(sec_border(3))
+            .style(Style::default().bg(BG));
+        let inner = block.inner(bot_cols[0]);
+        f.render_widget(block, bot_cols[0]);
+
+        let labels = ["Content", "Category", "Keyword", "Recency"];
+        let weights = app.prefs.weights;
+        let mut lines: Vec<Line> = Vec::new();
+        for (i, label) in labels.iter().enumerate() {
+            let is_sel = app.prefs.focus_section == 3 && app.prefs.section_selected[3] == i;
+            let bar = build_bar(weights[i], 100, 20);
+            let style = if is_sel {
+                Style::default().fg(ACCENT).bold()
+            } else {
+                Style::default().fg(TEXT)
+            };
+            let prefix = if is_sel { "► " } else { "  " };
+            lines.push(Line::from(vec![
+                Span::styled(prefix, style),
+                Span::styled(format!("{:<10}", label), style),
+                Span::styled(format!("{:>3}%  ", weights[i]), style),
+                Span::styled(bar, style),
+            ]));
+        }
+        f.render_widget(Paragraph::new(lines).style(Style::default().bg(BG)), inner);
+    }
+
+    // Config
+    {
+        let block = Block::default()
+            .title(" Config ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(TEXT_DIM))
+            .style(Style::default().bg(BG));
+        let inner = block.inner(bot_cols[1]);
+        f.render_widget(block, bot_cols[1]);
+
+        let lines = vec![
+            Line::from(vec![
+                Span::styled("Provider: ", Style::default().fg(ACCENT).bold()),
+                Span::styled(app.prefs.provider.clone(), Style::default().fg(TEXT)),
+            ]),
+            Line::from(vec![
+                Span::styled("Language: ", Style::default().fg(ACCENT).bold()),
+                Span::styled(app.prefs.language.clone(), Style::default().fg(TEXT)),
+            ]),
+        ];
+        f.render_widget(Paragraph::new(lines).style(Style::default().bg(BG)), inner);
+    }
+}
+
+// =============================================================================
+// Stars display helper
+// =============================================================================
+
+fn stars_display(n: i64) -> String {
+    let filled = n.min(5).max(0) as usize;
+    "★".repeat(filled) + &"☆".repeat(5 - filled)
 }
 
 // =============================================================================

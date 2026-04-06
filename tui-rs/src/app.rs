@@ -1,9 +1,15 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
-use crate::db::{Database, models::ScoredPaper};
+use crate::db::{
+    Database,
+    models::{
+        KeywordInterest, Paper, PaperNote, PreferredAuthor, PreferredCategory, ReadingList,
+        ReadingListPaper, ScoredPaper,
+    },
+};
 
 // =============================================================================
 // Tab
@@ -139,39 +145,65 @@ impl Default for SearchState {
 }
 
 pub struct ListsState {
-    pub selected: usize,
+    pub items: Vec<(ReadingList, i64)>, // (list, paper_count)
+    pub selected_list: usize,
+    pub papers: Vec<ReadingListPaper>,
+    pub paper_details: HashMap<String, Paper>, // arxiv_id → cached Paper
+    pub selected_paper: usize,
+    pub focus_left: bool, // true=list panel, false=paper panel
 }
 
 impl Default for ListsState {
     fn default() -> Self {
-        ListsState { selected: 0 }
+        ListsState {
+            items: vec![],
+            selected_list: 0,
+            papers: vec![],
+            paper_details: HashMap::new(),
+            selected_paper: 0,
+            focus_left: true,
+        }
     }
 }
 
 pub struct NotesState {
+    pub notes: Vec<PaperNote>,
     pub selected: usize,
 }
 
 impl Default for NotesState {
     fn default() -> Self {
-        NotesState { selected: 0 }
+        NotesState {
+            notes: vec![],
+            selected: 0,
+        }
     }
 }
 
 pub struct PrefsState {
+    pub categories: Vec<PreferredCategory>,
+    pub keywords: Vec<KeywordInterest>,
+    pub authors: Vec<PreferredAuthor>,
     pub weights: [i64; 4],
     pub provider: String,
     pub language: String,
-    pub selected: usize,
+    pub selected: usize,           // cursor in weights section
+    pub focus_section: usize,      // 0=cats, 1=keywords, 2=authors, 3=weights
+    pub section_selected: [usize; 4], // cursor per section
 }
 
 impl Default for PrefsState {
     fn default() -> Self {
         PrefsState {
+            categories: vec![],
+            keywords: vec![],
+            authors: vec![],
             weights: [60, 20, 15, 5],
             provider: "gemini".to_string(),
             language: "en".to_string(),
             selected: 0,
+            focus_section: 0,
+            section_selected: [0; 4],
         }
     }
 }
@@ -209,6 +241,10 @@ impl App {
 
         let (event_tx, event_rx) = mpsc::unbounded_channel();
 
+        let categories = db.get_categories().unwrap_or_default();
+        let keywords = db.get_keywords().unwrap_or_default();
+        let authors = db.get_authors().unwrap_or_default();
+
         Ok(App {
             running: true,
             active_tab: Tab::Daily,
@@ -221,10 +257,15 @@ impl App {
             lists: ListsState::default(),
             notes: NotesState::default(),
             prefs: PrefsState {
+                categories,
+                keywords,
+                authors,
                 weights,
                 provider,
                 language,
                 selected: 0,
+                focus_section: 0,
+                section_selected: [0; 4],
             },
             toasts: vec![],
             event_tx,

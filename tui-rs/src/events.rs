@@ -17,9 +17,34 @@ pub fn handle_key(app: &mut App, key: KeyCode) -> bool {
         // Tab switch: 1-5
         KeyCode::Char('1') => app.active_tab = Tab::Daily,
         KeyCode::Char('2') => app.active_tab = Tab::Search,
-        KeyCode::Char('3') => app.active_tab = Tab::Lists,
-        KeyCode::Char('4') => app.active_tab = Tab::Notes,
-        KeyCode::Char('5') => app.active_tab = Tab::Prefs,
+        KeyCode::Char('3') => {
+            app.active_tab = Tab::Lists;
+            app.lists.items = app
+                .db
+                .get_top_level_lists()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|l| {
+                    let count = app.db.get_list_paper_count(l.id).unwrap_or(0);
+                    (l, count)
+                })
+                .collect();
+            // Load papers for the currently selected list (if any)
+            load_list_papers(app);
+        }
+        KeyCode::Char('4') => {
+            app.active_tab = Tab::Notes;
+            app.notes.notes = app.db.get_notes().unwrap_or_default();
+        }
+        KeyCode::Char('5') => {
+            app.active_tab = Tab::Prefs;
+            app.prefs.categories = app.db.get_categories().unwrap_or_default();
+            app.prefs.keywords = app.db.get_keywords().unwrap_or_default();
+            app.prefs.authors = app.db.get_authors().unwrap_or_default();
+            app.prefs.weights = app.db.get_weights().unwrap_or([60, 20, 15, 5]);
+            app.prefs.provider = app.db.get_setting("ai_provider", "gemini").unwrap_or_else(|_| "gemini".to_string());
+            app.prefs.language = app.db.get_setting("language", "en").unwrap_or_else(|_| "en".to_string());
+        }
         // Delegate to per-tab handler
         _ => match app.active_tab {
             Tab::Daily => handle_daily_key(app, key),
@@ -204,69 +229,337 @@ pub fn handle_search_key(app: &mut App, key: KeyCode) {
         KeyCode::Char('/') => {
             app.search.editing = true;
         }
+        KeyCode::Char('l') => {
+            if let Some(paper) = app.search.results.get(app.search.selected) {
+                let id = paper.arxiv_id.clone();
+                match app.db.mark_interesting(&id) {
+                    Ok(_) => {
+                        let _ = app.event_tx.send(crate::app::AppEvent::Toast {
+                            message: format!("Liked: {id}"),
+                            is_error: false,
+                        });
+                    }
+                    Err(e) => {
+                        let _ = app.event_tx.send(crate::app::AppEvent::Toast {
+                            message: format!("Error liking: {e}"),
+                            is_error: true,
+                        });
+                    }
+                }
+            }
+        }
+        KeyCode::Char('d') => {
+            if let Some(paper) = app.search.results.get(app.search.selected) {
+                let id = paper.arxiv_id.clone();
+                match app.db.mark_not_interesting(&id) {
+                    Ok(_) => {
+                        let _ = app.event_tx.send(crate::app::AppEvent::Toast {
+                            message: format!("Disliked: {id}"),
+                            is_error: false,
+                        });
+                    }
+                    Err(e) => {
+                        let _ = app.event_tx.send(crate::app::AppEvent::Toast {
+                            message: format!("Error disliking: {e}"),
+                            is_error: true,
+                        });
+                    }
+                }
+            }
+        }
         _ => {}
     }
 }
 
 // =============================================================================
-// Lists (stub)
+// Lists
 // =============================================================================
 
 pub fn handle_lists_key(app: &mut App, key: KeyCode) {
     match key {
+        KeyCode::Tab => {
+            app.lists.focus_left = !app.lists.focus_left;
+        }
+        KeyCode::Char('r') | KeyCode::Char('R') => {
+            app.lists.items = app
+                .db
+                .get_top_level_lists()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|l| {
+                    let count = app.db.get_list_paper_count(l.id).unwrap_or(0);
+                    (l, count)
+                })
+                .collect();
+            load_list_papers(app);
+        }
         KeyCode::Down | KeyCode::Char('j') => {
-            app.lists.selected = app.lists.selected.saturating_add(1);
+            if app.lists.focus_left {
+                let max = app.lists.items.len().saturating_sub(1);
+                if app.lists.selected_list < max {
+                    app.lists.selected_list += 1;
+                    load_list_papers(app);
+                }
+            } else {
+                let max = app.lists.papers.len().saturating_sub(1);
+                if app.lists.selected_paper < max {
+                    app.lists.selected_paper += 1;
+                }
+            }
         }
         KeyCode::Up | KeyCode::Char('k') => {
-            app.lists.selected = app.lists.selected.saturating_sub(1);
+            if app.lists.focus_left {
+                if app.lists.selected_list > 0 {
+                    app.lists.selected_list -= 1;
+                    load_list_papers(app);
+                }
+            } else if app.lists.selected_paper > 0 {
+                app.lists.selected_paper -= 1;
+            }
+        }
+        KeyCode::Enter => {
+            if app.lists.focus_left {
+                // Already loaded on navigation; move focus to papers panel
+                app.lists.focus_left = false;
+            } else {
+                // Show toast with paper info
+                if let Some(p) = app.lists.papers.get(app.lists.selected_paper) {
+                    let id = p.arxiv_id.clone();
+                    let title = app
+                        .lists
+                        .paper_details
+                        .get(&id)
+                        .map(|d| d.title.clone())
+                        .unwrap_or_else(|| id.clone());
+                    let _ = app.event_tx.send(crate::app::AppEvent::Toast {
+                        message: format!("Paper: {}", truncate_for_toast(&title, 40)),
+                        is_error: false,
+                    });
+                }
+            }
+        }
+        KeyCode::Delete => {
+            if app.lists.focus_left {
+                if let Some((list, _)) = app.lists.items.get(app.lists.selected_list) {
+                    let list_id = list.id;
+                    let name = list.name.clone();
+                    match app.db.delete_list(list_id) {
+                        Ok(true) => {
+                            // Reload lists
+                            app.lists.items = app
+                                .db
+                                .get_top_level_lists()
+                                .unwrap_or_default()
+                                .into_iter()
+                                .map(|l| {
+                                    let count = app.db.get_list_paper_count(l.id).unwrap_or(0);
+                                    (l, count)
+                                })
+                                .collect();
+                            app.lists.selected_list =
+                                app.lists.selected_list.min(app.lists.items.len().saturating_sub(1));
+                            app.lists.papers.clear();
+                            app.lists.paper_details.clear();
+                            let _ = app.event_tx.send(crate::app::AppEvent::Toast {
+                                message: format!("Deleted list: {name}"),
+                                is_error: false,
+                            });
+                        }
+                        Ok(false) => {
+                            let _ = app.event_tx.send(crate::app::AppEvent::Toast {
+                                message: "Cannot delete system list".to_string(),
+                                is_error: true,
+                            });
+                        }
+                        Err(e) => {
+                            let _ = app.event_tx.send(crate::app::AppEvent::Toast {
+                                message: format!("Error: {e}"),
+                                is_error: true,
+                            });
+                        }
+                    }
+                }
+            }
         }
         _ => {}
     }
 }
 
+/// Load papers for the currently selected list and cache their details.
+fn load_list_papers(app: &mut App) {
+    if let Some((list, _)) = app.lists.items.get(app.lists.selected_list) {
+        let list_id = list.id;
+        let papers = app.db.get_list_papers(list_id).unwrap_or_default();
+        for p in &papers {
+            if !app.lists.paper_details.contains_key(&p.arxiv_id) {
+                if let Ok(Some(detail)) = app.db.get_paper(&p.arxiv_id) {
+                    app.lists.paper_details.insert(p.arxiv_id.clone(), detail);
+                }
+            }
+        }
+        app.lists.papers = papers;
+        app.lists.selected_paper = 0;
+    }
+}
+
+fn truncate_for_toast(s: &str, max: usize) -> &str {
+    if s.len() <= max {
+        s
+    } else {
+        &s[..max]
+    }
+}
+
 // =============================================================================
-// Notes (stub)
+// Notes
 // =============================================================================
 
 pub fn handle_notes_key(app: &mut App, key: KeyCode) {
     match key {
         KeyCode::Down | KeyCode::Char('j') => {
-            app.notes.selected = app.notes.selected.saturating_add(1);
+            let max = app.notes.notes.len().saturating_sub(1);
+            if app.notes.selected < max {
+                app.notes.selected += 1;
+            }
         }
         KeyCode::Up | KeyCode::Char('k') => {
-            app.notes.selected = app.notes.selected.saturating_sub(1);
+            if app.notes.selected > 0 {
+                app.notes.selected -= 1;
+            }
+        }
+        KeyCode::Delete => {
+            if let Some(note) = app.notes.notes.get(app.notes.selected) {
+                let note_id = note.id;
+                let arxiv_id = note.arxiv_id.clone();
+                match app.db.delete_note(note_id) {
+                    Ok(true) => {
+                        app.notes.notes = app.db.get_notes().unwrap_or_default();
+                        app.notes.selected =
+                            app.notes.selected.min(app.notes.notes.len().saturating_sub(1));
+                        let _ = app.event_tx.send(crate::app::AppEvent::Toast {
+                            message: format!("Note deleted: {arxiv_id}"),
+                            is_error: false,
+                        });
+                    }
+                    Ok(false) => {}
+                    Err(e) => {
+                        let _ = app.event_tx.send(crate::app::AppEvent::Toast {
+                            message: format!("Error deleting note: {e}"),
+                            is_error: true,
+                        });
+                    }
+                }
+            }
+        }
+        KeyCode::Char('r') | KeyCode::Char('R') => {
+            app.notes.notes = app.db.get_notes().unwrap_or_default();
+            app.notes.selected = app.notes.selected.min(app.notes.notes.len().saturating_sub(1));
         }
         _ => {}
     }
 }
 
 // =============================================================================
-// Prefs (stub)
+// Prefs
 // =============================================================================
 
 pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
     match key {
+        KeyCode::Tab => {
+            app.prefs.focus_section = (app.prefs.focus_section + 1) % 4;
+        }
         KeyCode::Down | KeyCode::Char('j') => {
-            if app.prefs.selected + 1 < 4 {
-                app.prefs.selected += 1;
+            let sec = app.prefs.focus_section;
+            let max = match sec {
+                0 => app.prefs.categories.len(),
+                1 => app.prefs.keywords.len(),
+                2 => app.prefs.authors.len(),
+                3 => 4,
+                _ => 1,
+            };
+            if max > 0 && app.prefs.section_selected[sec] + 1 < max {
+                app.prefs.section_selected[sec] += 1;
+                if sec == 3 {
+                    app.prefs.selected = app.prefs.section_selected[3];
+                }
             }
         }
         KeyCode::Up | KeyCode::Char('k') => {
-            if app.prefs.selected > 0 {
-                app.prefs.selected -= 1;
+            let sec = app.prefs.focus_section;
+            if app.prefs.section_selected[sec] > 0 {
+                app.prefs.section_selected[sec] -= 1;
+                if sec == 3 {
+                    app.prefs.selected = app.prefs.section_selected[3];
+                }
             }
         }
         KeyCode::Left | KeyCode::Char('h') => {
-            let idx = app.prefs.selected;
-            let new_weights = adjust_weights(idx, app.prefs.weights[idx] - 5, app.prefs.weights);
-            app.prefs.weights = new_weights;
-            let _ = app.db.set_weights(new_weights);
+            if app.prefs.focus_section == 3 {
+                let idx = app.prefs.selected;
+                let new_weights =
+                    adjust_weights(idx, app.prefs.weights[idx] - 5, app.prefs.weights);
+                app.prefs.weights = new_weights;
+                let _ = app.db.set_weights(new_weights);
+            }
         }
         KeyCode::Right | KeyCode::Char('l') => {
-            let idx = app.prefs.selected;
-            let new_weights = adjust_weights(idx, app.prefs.weights[idx] + 5, app.prefs.weights);
-            app.prefs.weights = new_weights;
-            let _ = app.db.set_weights(new_weights);
+            if app.prefs.focus_section == 3 {
+                let idx = app.prefs.selected;
+                let new_weights =
+                    adjust_weights(idx, app.prefs.weights[idx] + 5, app.prefs.weights);
+                app.prefs.weights = new_weights;
+                let _ = app.db.set_weights(new_weights);
+            }
+        }
+        KeyCode::Delete => {
+            let sec = app.prefs.focus_section;
+            match sec {
+                0 => {
+                    let sel = app.prefs.section_selected[0];
+                    if let Some(cat) = app.prefs.categories.get(sel) {
+                        let cat_name = cat.category.clone();
+                        let _ = app.db.remove_category(&cat_name);
+                        app.prefs.categories = app.db.get_categories().unwrap_or_default();
+                        app.prefs.section_selected[0] = sel
+                            .min(app.prefs.categories.len().saturating_sub(1));
+                    }
+                }
+                1 => {
+                    let sel = app.prefs.section_selected[1];
+                    if let Some(kw) = app.prefs.keywords.get(sel) {
+                        let kw_name = kw.keyword.clone();
+                        let _ = app.db.remove_keyword(&kw_name);
+                        app.prefs.keywords = app.db.get_keywords().unwrap_or_default();
+                        app.prefs.section_selected[1] = sel
+                            .min(app.prefs.keywords.len().saturating_sub(1));
+                    }
+                }
+                2 => {
+                    let sel = app.prefs.section_selected[2];
+                    if let Some(auth) = app.prefs.authors.get(sel) {
+                        let auth_name = auth.name.clone();
+                        let _ = app.db.remove_author(&auth_name);
+                        app.prefs.authors = app.db.get_authors().unwrap_or_default();
+                        app.prefs.section_selected[2] = sel
+                            .min(app.prefs.authors.len().saturating_sub(1));
+                    }
+                }
+                _ => {}
+            }
+        }
+        KeyCode::Char('r') | KeyCode::Char('R') => {
+            app.prefs.categories = app.db.get_categories().unwrap_or_default();
+            app.prefs.keywords = app.db.get_keywords().unwrap_or_default();
+            app.prefs.authors = app.db.get_authors().unwrap_or_default();
+            app.prefs.weights = app.db.get_weights().unwrap_or([60, 20, 15, 5]);
+            app.prefs.provider = app
+                .db
+                .get_setting("ai_provider", "gemini")
+                .unwrap_or_else(|_| "gemini".to_string());
+            app.prefs.language = app
+                .db
+                .get_setting("language", "en")
+                .unwrap_or_else(|_| "en".to_string());
         }
         _ => {}
     }
