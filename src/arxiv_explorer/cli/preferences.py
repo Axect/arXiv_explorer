@@ -46,7 +46,7 @@ def remove_category(
 @app.command("add-keyword")
 def add_keyword(
     keyword: str = typer.Argument(..., help="Keyword"),
-    weight: float = typer.Option(1.0, "--weight", "-w", help="Weight"),
+    weight: int = typer.Option(3, "--weight", "-w", help="Importance (1-5 stars)"),
 ):
     """Add a keyword interest."""
     service = PreferenceService()

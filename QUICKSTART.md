@@ -16,9 +16,9 @@ axp prefs add-category hep-ph --priority 2
 axp prefs add-category cs.AI --priority 1
 axp prefs add-category quant-ph
 
-# Add keywords you're interested in
-axp prefs add-keyword "quantum" --weight 1.5
-axp prefs add-keyword "machine learning" --weight 2.0
+# Add keywords you're interested in (1-5 stars)
+axp prefs add-keyword "quantum" --weight 4
+axp prefs add-keyword "machine learning" --weight 5
 
 # View your settings
 axp prefs
@@ -26,9 +26,10 @@ axp prefs
 
 > **How priority and weight affect recommendations**
 >
-> - **Category priority** (default: 1) — Priorities are normalized relative to each other. If you set hep-ph=2 and cs.AI=1, hep-ph papers receive twice the category matching bonus. The category score contributes 20% of the total recommendation score.
-> - **Keyword weight** (default: 1.0) — Weights are applied directly as a multiplier. A keyword with weight 2.0 contributes twice as much as one with weight 1.0 when found in a paper. The keyword score contributes 10% of the total recommendation score.
-> - Categories with no explicit `--priority` default to 1; keywords with no `--weight` default to 1.0.
+> - **Category priority** (default: 1) — Priorities are normalized relative to each other. If you set hep-ph=2 and cs.AI=1, hep-ph papers receive twice the category matching bonus.
+> - **Keyword weight** (default: 3, range: 1-5 stars) — Higher stars mean stronger influence. A 5-star keyword contributes more than a 1-star keyword when found in a paper.
+> - **Recommendation weights** — Configurable in the TUI Prefs tab. Defaults: Content 60%, Category 20%, Keyword 15%, Recency 5%.
+> - Categories with no explicit `--priority` default to 1; keywords with no `--weight` default to 3.
 
 ### Configure AI Provider (Optional)
 
@@ -182,18 +183,19 @@ Launch the interactive terminal UI with `axp tui`.
 2. **Search** — Search arXiv
 3. **Lists** — Manage reading lists
 4. **Notes** — Browse paper notes
-5. **Prefs** — Manage categories, keywords, and AI settings
+5. **Prefs** — Manage categories, keywords, authors, weights, and AI settings
 
 **Keyboard Shortcuts**:
-- `Enter` — Open paper detail modal
+- `Enter` — Open paper detail overlay
 - `l` — Like paper
 - `d` — Dislike paper
 - `s` — Generate AI summary
 - `t` — Translate paper
-- `n` — Add note
-- `a` — Add to reading list
-- `r` — Refresh current tab
-- `?` — Show all shortcuts
+- `r` — Generate AI review
+- `b` — Bookmark paper
+- `f` — Fetch papers (Daily tab)
+- `j` — Toggle jobs panel
+- `a` — Add item (Prefs tab: category/keyword/author)
 - `q` — Quit
 
 ## Helpful Defaults
@@ -215,10 +217,10 @@ axp show       # → shows recently liked papers
 
 ## Recommendation Algorithm
 
-Papers are scored using a weighted combination:
-- **Content similarity** (50%): TF-IDF cosine similarity to your liked papers
+Papers are scored using a weighted combination (defaults, configurable in Prefs tab):
+- **Content similarity** (60%): TF-IDF cosine similarity to your liked papers
 - **Category matching** (20%): Priority of matched categories
-- **Keyword matching** (10%): Weighted keyword presence
+- **Keyword matching** (15%): Weighted keyword presence (1-5 stars)
 - **Recency** (5%): Bonus for papers published in the last 30 days
 
 The more papers you `like`, the better the recommendations become.
