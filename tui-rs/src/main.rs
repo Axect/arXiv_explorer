@@ -134,6 +134,11 @@ fn render(f: &mut Frame, app: &mut App) {
         render_paper_detail(f, app);
     }
 
+    // Jobs overlay on top of everything except toasts
+    if app.show_jobs {
+        render_jobs_panel(f, app);
+    }
+
     render_toasts(f, app, area);
 }
 
@@ -155,6 +160,21 @@ fn render_tab_bar(f: &mut Frame, app: &App, area: Rect) {
         };
         spans.push(Span::styled(label, style));
     }
+
+    // Jobs indicator on the right
+    let running = app.jobs.iter().filter(|j| j.status == crate::app::JobStatus::Running).count();
+    if running > 0 {
+        spans.push(Span::styled(
+            format!("  ⟳ {} job{}", running, if running == 1 { "" } else { "s" }),
+            Style::default().fg(AUTHOR_HL).bg(SURFACE).bold(),
+        ));
+    } else if !app.jobs.is_empty() {
+        spans.push(Span::styled(
+            "  ✓ jobs done",
+            Style::default().fg(SUCCESS_COLOR).bg(SURFACE),
+        ));
+    }
+
     let line = Line::from(spans);
     let paragraph = Paragraph::new(line).style(Style::default().bg(SURFACE));
     f.render_widget(paragraph, area);
@@ -180,11 +200,11 @@ fn render_tab_content(f: &mut Frame, app: &mut App, area: Rect) {
 
 fn render_key_hints(f: &mut Frame, app: &App, area: Rect) {
     let hints = match app.active_tab {
-        Tab::Daily => " [/] Days  -/= Limit  [r]efresh  [l]ike  [d]islike  [b]ookmark  [q]uit",
-        Tab::Search => " [/] search  [l]ike  [d]islike  [↑↓] navigate  [q]uit",
-        Tab::Lists => " [Tab] focus  [n]ew  [f]older  [e]dit  [Del]ete  [s]ort  [r]eload  [q]uit",
-        Tab::Notes => " [↑↓] navigate  [Del]ete  [r]eload  [q]uit",
-        Tab::Prefs => " [Tab] section  [↑↓] select  [←→] weights  [p]rovider  lan[g]  [Del]ete  [r]eload  [q]uit",
+        Tab::Daily => " [/] Days  -/= Limit  [f]etch  [l]ike  [d]islike  [b]ookmark  [Tab] focus  [j]obs  [q]uit",
+        Tab::Search => " [/] search  [l]ike  [d]islike  [↑↓] navigate  [j]obs  [q]uit",
+        Tab::Lists => " [Tab] focus  [n]ew  [f]older  [e]dit  [Del]ete  [s]ort  [r]eload  [j]obs  [q]uit",
+        Tab::Notes => " [↑↓] navigate  [Del]ete  [r]eload  [j]obs  [q]uit",
+        Tab::Prefs => " [Tab] section  [↑↓] select  [←→] weights  [p]rovider  lan[g]  [Del]ete  [r]eload  [j]obs  [q]uit",
     };
     let p = Paragraph::new(hints)
         .style(Style::default().fg(TEXT_DIM).bg(SURFACE));
@@ -208,7 +228,7 @@ fn render_daily(f: &mut Frame, app: &mut App, area: Rect) {
 
     if total == 0 {
         let msg = Paragraph::new(format!(
-            "No papers loaded. Days={} Limit={}  Press 'r' to fetch.  [/]=Days  -/==Limit",
+            "No papers loaded. Days={} Limit={}  Press 'f' to fetch.  [/]=Days  -/==Limit",
             app.daily.days, app.daily.limit
         ))
             .style(Style::default().fg(TEXT_DIM).bg(BG))
@@ -239,7 +259,7 @@ fn render_daily(f: &mut Frame, app: &mut App, area: Rect) {
 fn render_daily_status(f: &mut Frame, app: &App, area: Rect) {
     let total = app.daily.author_papers.len() + app.daily.scored_papers.len();
     let status = format!(
-        " Days: ◀ {} ▶ ([/])  Limit: ◀ {} ▶ (-/=)  │ {} papers  │ r:Fetch",
+        " Days: ◀ {} ▶ ([/])  Limit: ◀ {} ▶ (-/=)  │ {} papers  │ f:Fetch",
         app.daily.days, app.daily.limit, total
     );
     let status_p = Paragraph::new(status)
@@ -387,13 +407,19 @@ fn render_daily_table(f: &mut Frame, app: &mut App, area: Rect) {
         .iter()
         .position(|fi| *fi == Some(app.daily.selected));
 
+    let papers_border_style = if app.daily.focus_detail {
+        Style::default().fg(TEXT_DIM)
+    } else {
+        Style::default().fg(ACCENT)
+    };
+
     let table = Table::new(rows, widths)
         .header(header)
         .block(
             Block::default()
                 .title(" Papers ")
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT))
+                .border_style(papers_border_style)
                 .style(Style::default().bg(BG)),
         )
         .row_highlight_style(Style::default().bg(ACCENT).fg(BG).bold())
@@ -406,10 +432,22 @@ fn render_daily_table(f: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn render_daily_detail(f: &mut Frame, app: &App, area: Rect) {
+    let (detail_border_style, detail_title) = if app.daily.focus_detail {
+        (
+            Style::default().fg(ACCENT),
+            " Detail  [Tab] to papers ",
+        )
+    } else {
+        (
+            Style::default().fg(TEXT_DIM),
+            " Detail  [Tab] to scroll ",
+        )
+    };
+
     let block = Block::default()
-        .title(" Detail ")
+        .title(detail_title)
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(TEXT_DIM))
+        .border_style(detail_border_style)
         .style(Style::default().bg(BG));
 
     let inner = block.inner(area);
@@ -475,7 +513,8 @@ fn render_daily_detail(f: &mut Frame, app: &App, area: Rect) {
 
     let paragraph = Paragraph::new(lines)
         .style(Style::default().bg(BG))
-        .wrap(Wrap { trim: true });
+        .wrap(Wrap { trim: true })
+        .scroll((app.daily.detail_scroll, 0));
 
     f.render_widget(paragraph, inner);
 }
@@ -1200,9 +1239,89 @@ fn render_paper_detail(f: &mut Frame, app: &App) {
 
     // Key hints at bottom
     let hints = Paragraph::new(
-        " [s]ummarize  [t]ranslate  [w]review  [l]ike  [d]islike  [b]ookmark  [Esc] close",
+        " [s]ummarize  [t]ranslate  [r]eview  [l]ike  [d]islike  [b]ookmark  [Esc] close",
     )
     .style(Style::default().fg(TEXT_DIM).bg(SURFACE));
+    f.render_widget(hints, chunks[1]);
+}
+
+// =============================================================================
+// Jobs Panel Overlay
+// =============================================================================
+
+fn render_jobs_panel(f: &mut Frame, app: &App) {
+    use crate::app::{JobStatus};
+
+    let area = f.area();
+    let w = (area.width * 70 / 100).max(60).min(area.width);
+    let h = (app.jobs.len() as u16 + 6).max(8).min(area.height);
+    let x = (area.width.saturating_sub(w)) / 2;
+    let y = (area.height.saturating_sub(h)) / 2;
+    let overlay = Rect::new(x, y, w, h);
+
+    f.render_widget(Clear, overlay);
+
+    let block = Block::default()
+        .title(" Background Jobs ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(ACCENT))
+        .style(Style::default().bg(BG));
+    let inner = block.inner(overlay);
+    f.render_widget(block, overlay);
+
+    // Split inner: job list | hints bar
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(1)])
+        .split(inner);
+
+    if app.jobs.is_empty() {
+        let msg = Paragraph::new("No background jobs.")
+            .style(Style::default().fg(TEXT_DIM).bg(BG))
+            .alignment(Alignment::Center);
+        f.render_widget(msg, chunks[0]);
+    } else {
+        let mut lines: Vec<Line> = Vec::new();
+        for (i, job) in app.jobs.iter().enumerate() {
+            let is_sel = app.selected_job == i;
+            let (status_icon, status_str, status_color) = match &job.status {
+                JobStatus::Running => ("⟳", "Running".to_string(), AUTHOR_HL),
+                JobStatus::Done    => ("✓", "Done".to_string(), SUCCESS_COLOR),
+                JobStatus::Failed(e) => {
+                    let short = if e.len() > 20 { format!("{}…", &e[..19]) } else { e.clone() };
+                    ("✗", format!("Failed: {short}"), ERROR_COLOR)
+                }
+            };
+            let elapsed = job.started_at.elapsed().as_secs();
+            let elapsed_str = if elapsed < 60 {
+                format!("{:>3}s", elapsed)
+            } else {
+                format!("{:>2}m{:02}s", elapsed / 60, elapsed % 60)
+            };
+            let title_short = truncate_str(&job.paper_title, 30);
+            let label = format!(
+                " {} {:<9}  {:<12}  {:<30}  {:>6}  {}",
+                status_icon,
+                job.job_type.label(),
+                truncate_str(&job.paper_id, 12),
+                title_short,
+                elapsed_str,
+                status_str,
+            );
+            let style = if is_sel {
+                Style::default().fg(BG).bg(ACCENT).bold()
+            } else {
+                Style::default().fg(status_color).bg(BG)
+            };
+            lines.push(Line::from(Span::styled(label, style)));
+        }
+        let paragraph = Paragraph::new(lines).style(Style::default().bg(BG));
+        f.render_widget(paragraph, chunks[0]);
+    }
+
+    // Key hints
+    let hints = Paragraph::new(" [↑↓] navigate  [c] clear done  [j/Esc] close")
+        .style(Style::default().fg(TEXT_DIM).bg(SURFACE));
     f.render_widget(hints, chunks[1]);
 }
 

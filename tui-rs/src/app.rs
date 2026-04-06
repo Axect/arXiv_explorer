@@ -108,6 +108,8 @@ pub struct DailyState {
     pub selected: usize,
     pub bookmarked: HashSet<String>,
     pub loading: bool,
+    pub focus_detail: bool, // true = detail panel has focus
+    pub detail_scroll: u16, // scroll offset for detail panel
 }
 
 impl Default for DailyState {
@@ -120,6 +122,8 @@ impl Default for DailyState {
             selected: 0,
             bookmarked: HashSet::new(),
             loading: false,
+            focus_detail: false,
+            detail_scroll: 0,
         }
     }
 }
@@ -220,6 +224,44 @@ pub struct PaperDetailState {
 }
 
 // =============================================================================
+// Background Jobs
+// =============================================================================
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum JobType {
+    Summarize,
+    Translate,
+    Review,
+}
+
+impl JobType {
+    pub fn label(&self) -> &'static str {
+        match self {
+            JobType::Summarize => "SUMMARY  ",
+            JobType::Translate => "TRANSLATE",
+            JobType::Review   => "REVIEW   ",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum JobStatus {
+    Running,
+    Done,
+    Failed(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct JobEntry {
+    pub id: String,
+    pub paper_id: String,
+    pub paper_title: String,
+    pub job_type: JobType,
+    pub status: JobStatus,
+    pub started_at: Instant,
+}
+
+// =============================================================================
 // App
 // =============================================================================
 
@@ -236,6 +278,9 @@ pub struct App {
     pub detail: Option<PaperDetailState>,
     pub event_tx: mpsc::UnboundedSender<AppEvent>,
     pub event_rx: mpsc::UnboundedReceiver<AppEvent>,
+    pub show_jobs: bool,
+    pub jobs: Vec<JobEntry>,
+    pub selected_job: usize,
 }
 
 impl App {
@@ -283,6 +328,9 @@ impl App {
             detail: None,
             event_tx,
             event_rx,
+            show_jobs: false,
+            jobs: vec![],
+            selected_job: 0,
         })
     }
 
@@ -306,6 +354,13 @@ impl App {
             }
             AppEvent::JobCompleted { job_id, message } => {
                 self.push_toast(message, false);
+                // Update job status in the jobs list
+                for job in &mut self.jobs {
+                    if job.id == job_id {
+                        job.status = JobStatus::Done;
+                        break;
+                    }
+                }
                 // Refresh detail overlay cache if it's open and belongs to this job
                 if let Some(detail) = &mut self.detail {
                     if job_id.contains(&detail.paper.arxiv_id) {
@@ -325,8 +380,15 @@ impl App {
                     }
                 }
             }
-            AppEvent::JobFailed { job_id: _, message } => {
-                self.push_toast(message, true);
+            AppEvent::JobFailed { job_id, message } => {
+                self.push_toast(message.clone(), true);
+                // Update job status in the jobs list
+                for job in &mut self.jobs {
+                    if job.id == job_id {
+                        job.status = JobStatus::Failed(message.clone());
+                        break;
+                    }
+                }
             }
             AppEvent::Toast { message, is_error } => {
                 self.push_toast(message, is_error);

@@ -14,11 +14,21 @@ pub fn handle_key(app: &mut App, key: KeyCode) -> bool {
         return false;
     }
 
+    // Jobs panel takes priority after detail overlay
+    if app.show_jobs {
+        handle_jobs_key(app, key);
+        return false;
+    }
+
     match key {
         // Quit
         KeyCode::Char('q') | KeyCode::Char('Q') => {
             app.running = false;
             return true;
+        }
+        // Toggle jobs panel (global — works from any tab)
+        KeyCode::Char('j') => {
+            app.show_jobs = true;
         }
         // Tab switch: 1-5
         KeyCode::Char('1') => app.active_tab = Tab::Daily,
@@ -64,6 +74,34 @@ pub fn handle_key(app: &mut App, key: KeyCode) -> bool {
 }
 
 // =============================================================================
+// Jobs Panel
+// =============================================================================
+
+pub fn handle_jobs_key(app: &mut App, key: KeyCode) {
+    match key {
+        KeyCode::Char('j') | KeyCode::Esc | KeyCode::Char('q') => {
+            app.show_jobs = false;
+        }
+        KeyCode::Up | KeyCode::Char('k') => {
+            if app.selected_job > 0 {
+                app.selected_job -= 1;
+            }
+        }
+        KeyCode::Down | KeyCode::Char('K') => {
+            if app.selected_job + 1 < app.jobs.len() {
+                app.selected_job += 1;
+            }
+        }
+        KeyCode::Char('c') => {
+            // Clear completed/failed jobs
+            app.jobs.retain(|j| j.status == crate::app::JobStatus::Running);
+            app.selected_job = app.selected_job.min(app.jobs.len().saturating_sub(1));
+        }
+        _ => {}
+    }
+}
+
+// =============================================================================
 // Paper Detail Overlay
 // =============================================================================
 
@@ -77,7 +115,7 @@ pub fn handle_detail_key(app: &mut App, key: KeyCode) {
                 detail.scroll = detail.scroll.saturating_sub(1);
             }
         }
-        KeyCode::Down | KeyCode::Char('j') => {
+        KeyCode::Down => {
             if let Some(detail) = &mut app.detail {
                 detail.scroll = detail.scroll.saturating_add(1);
             }
@@ -85,27 +123,54 @@ pub fn handle_detail_key(app: &mut App, key: KeyCode) {
         KeyCode::Char('s') => {
             if let Some(detail) = &app.detail {
                 let arxiv_id = detail.paper.arxiv_id.clone();
+                let title = detail.paper.title.clone();
                 let job_id = format!("sum-{}", &arxiv_id);
                 let tx = app.event_tx.clone();
                 app.push_toast("Summarizing...", false);
+                app.jobs.push(crate::app::JobEntry {
+                    id: job_id.clone(),
+                    paper_id: arxiv_id.clone(),
+                    paper_title: title,
+                    job_type: crate::app::JobType::Summarize,
+                    status: crate::app::JobStatus::Running,
+                    started_at: std::time::Instant::now(),
+                });
                 crate::commands::ai::run_summarize(tx, job_id, arxiv_id);
             }
         }
         KeyCode::Char('t') => {
             if let Some(detail) = &app.detail {
                 let arxiv_id = detail.paper.arxiv_id.clone();
+                let title = detail.paper.title.clone();
                 let job_id = format!("trans-{}", &arxiv_id);
                 let tx = app.event_tx.clone();
                 app.push_toast("Translating...", false);
+                app.jobs.push(crate::app::JobEntry {
+                    id: job_id.clone(),
+                    paper_id: arxiv_id.clone(),
+                    paper_title: title,
+                    job_type: crate::app::JobType::Translate,
+                    status: crate::app::JobStatus::Running,
+                    started_at: std::time::Instant::now(),
+                });
                 crate::commands::ai::run_translate(tx, job_id, arxiv_id);
             }
         }
-        KeyCode::Char('w') => {
+        KeyCode::Char('r') => {
             if let Some(detail) = &app.detail {
                 let arxiv_id = detail.paper.arxiv_id.clone();
+                let title = detail.paper.title.clone();
                 let job_id = format!("review-{}", &arxiv_id);
                 let tx = app.event_tx.clone();
                 app.push_toast("Reviewing...", false);
+                app.jobs.push(crate::app::JobEntry {
+                    id: job_id.clone(),
+                    paper_id: arxiv_id.clone(),
+                    paper_title: title,
+                    job_type: crate::app::JobType::Review,
+                    status: crate::app::JobStatus::Running,
+                    started_at: std::time::Instant::now(),
+                });
                 crate::commands::ai::run_review(tx, job_id, arxiv_id);
             }
         }
@@ -155,21 +220,30 @@ pub fn handle_detail_key(app: &mut App, key: KeyCode) {
 
 pub fn handle_daily_key(app: &mut App, key: KeyCode) {
     let total = app.daily.author_papers.len() + app.daily.scored_papers.len();
-    if total == 0 && !matches!(key, KeyCode::Char('r') | KeyCode::Char('R') | KeyCode::Char('[') | KeyCode::Char(']') | KeyCode::Char('-') | KeyCode::Char('=')) {
+    if total == 0 && !matches!(key, KeyCode::Char('f') | KeyCode::Char('F') | KeyCode::Char('[') | KeyCode::Char(']') | KeyCode::Char('-') | KeyCode::Char('=')) {
         return;
     }
 
     match key {
-        // Navigate down
-        KeyCode::Down | KeyCode::Char('j') => {
-            if total > 0 && app.daily.selected + 1 < total {
+        // Toggle focus between papers table and detail panel
+        KeyCode::Tab => {
+            app.daily.focus_detail = !app.daily.focus_detail;
+        }
+        // Navigate / scroll — behaviour depends on which panel has focus
+        KeyCode::Down | KeyCode::Char('K') => {
+            if app.daily.focus_detail {
+                app.daily.detail_scroll = app.daily.detail_scroll.saturating_add(1);
+            } else if total > 0 && app.daily.selected + 1 < total {
                 app.daily.selected += 1;
+                app.daily.detail_scroll = 0;
             }
         }
-        // Navigate up
         KeyCode::Up | KeyCode::Char('k') => {
-            if app.daily.selected > 0 {
+            if app.daily.focus_detail {
+                app.daily.detail_scroll = app.daily.detail_scroll.saturating_sub(1);
+            } else if app.daily.selected > 0 {
                 app.daily.selected -= 1;
+                app.daily.detail_scroll = 0;
             }
         }
         // Like
@@ -264,8 +338,8 @@ pub fn handle_daily_key(app: &mut App, key: KeyCode) {
             let pos = options.iter().position(|&n| n == app.daily.limit).unwrap_or(1);
             app.daily.limit = options[(pos + 1) % options.len()];
         }
-        // Refresh / fetch
-        KeyCode::Char('r') | KeyCode::Char('R') => {
+        // Fetch papers
+        KeyCode::Char('f') | KeyCode::Char('F') => {
             if !app.daily.loading {
                 app.daily.loading = true;
                 crate::commands::fetch::fetch_daily(
@@ -314,7 +388,7 @@ pub fn handle_search_key(app: &mut App, key: KeyCode) {
 
     let total = app.search.results.len();
     match key {
-        KeyCode::Down | KeyCode::Char('j') => {
+        KeyCode::Down | KeyCode::Char('K') => {
             if total > 0 && app.search.selected + 1 < total {
                 app.search.selected += 1;
             }
@@ -397,7 +471,7 @@ pub fn handle_lists_key(app: &mut App, key: KeyCode) {
                 .collect();
             load_list_papers(app);
         }
-        KeyCode::Down | KeyCode::Char('j') => {
+        KeyCode::Down | KeyCode::Char('K') => {
             if app.lists.focus_left {
                 let max = app.lists.items.len().saturating_sub(1);
                 if app.lists.selected_list < max {
@@ -532,7 +606,7 @@ fn truncate_for_toast(s: &str, max: usize) -> &str {
 
 pub fn handle_notes_key(app: &mut App, key: KeyCode) {
     match key {
-        KeyCode::Down | KeyCode::Char('j') => {
+        KeyCode::Down | KeyCode::Char('K') => {
             let max = app.notes.notes.len().saturating_sub(1);
             if app.notes.selected < max {
                 app.notes.selected += 1;
@@ -584,7 +658,7 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
         KeyCode::Tab => {
             app.prefs.focus_section = (app.prefs.focus_section + 1) % 4;
         }
-        KeyCode::Down | KeyCode::Char('j') => {
+        KeyCode::Down | KeyCode::Char('K') => {
             let sec = app.prefs.focus_section;
             let max = match sec {
                 0 => app.prefs.categories.len(),
