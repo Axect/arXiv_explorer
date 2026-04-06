@@ -54,6 +54,7 @@ class PaperTable(Vertical):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self._papers: list[RecommendedPaper] = []
+        self._author_matched: set[str] = set()
 
     def compose(self) -> ComposeResult:
         yield LoadingIndicator(id="pt-loading")
@@ -102,6 +103,20 @@ class PaperTable(Vertical):
 
         if papers:
             self.post_message(self.PaperHighlighted(papers[0]))
+
+    def set_author_matched(self, arxiv_ids: set[str]) -> None:
+        """Mark papers by preferred authors with a star label."""
+        self._author_matched = arxiv_ids
+        self._refresh_row_labels()
+
+    def _refresh_row_labels(self) -> None:
+        table = self.query_one("#pt-table", DataTable)
+        for i, rec in enumerate(self._papers):
+            label = f"★{i + 1}" if rec.paper.arxiv_id in self._author_matched else str(i + 1)
+            try:
+                table.update_cell(rec.paper.arxiv_id, "idx", label)
+            except Exception:
+                pass
 
     def _get_paper_by_row_key(self, row_key) -> RecommendedPaper | None:
         key_str = row_key.value if hasattr(row_key, "value") else str(row_key)

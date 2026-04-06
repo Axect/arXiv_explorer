@@ -1,5 +1,6 @@
 """Service facade — holds all service instances."""
 
+from ..services.author_service import AuthorService
 from ..services.notes_service import NotesService
 from ..services.paper_service import PaperService
 from ..services.preference_service import PreferenceService
@@ -26,3 +27,4 @@ class ServiceBridge:
         self.translation = TranslationService()
         self.settings = SettingsService()
         self.review = PaperReviewService()
+        self.authors = AuthorService()

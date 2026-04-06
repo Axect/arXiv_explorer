@@ -155,16 +155,22 @@ class DailyPane(Vertical):
 
         bridge = self.app.bridge
         try:
-            papers = bridge.papers.get_daily_papers(days=days, limit=limit)
+            author_papers, scored_papers = bridge.papers.get_daily_papers(days=days, limit=limit)
         except Exception as e:
             self.app.call_from_thread(self._show_error, str(e))
             return
 
-        self.app.call_from_thread(self._update_papers, papers)
+        all_papers = author_papers + scored_papers
+        author_ids = {rec.paper.arxiv_id for rec in author_papers}
+        self.app.call_from_thread(self._update_papers, all_papers, author_ids)
 
-    def _update_papers(self, papers: list[RecommendedPaper]) -> None:
+    def _update_papers(
+        self, papers: list[RecommendedPaper], author_ids: set[str] | None = None
+    ) -> None:
         table = self.query_one("#daily-table", PaperTable)
         table.set_papers(papers)
+        if author_ids:
+            table.set_author_matched(author_ids)
         if not papers:
             cats = self.app.bridge.preferences.get_categories()
             if not cats:
