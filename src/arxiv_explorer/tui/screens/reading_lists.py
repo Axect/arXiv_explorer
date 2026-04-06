@@ -41,11 +41,6 @@ class ReadingListsPane(Vertical):
     ReadingListsPane #rl-list-view {
         height: 1fr;
     }
-    ReadingListsPane #rl-left-hints {
-        height: 1;
-        padding: 0 1;
-        color: $text-muted;
-    }
     ReadingListsPane #rl-right {
         width: 2fr;
         padding: 0 1;
@@ -58,11 +53,6 @@ class ReadingListsPane(Vertical):
     }
     ReadingListsPane #rl-papers-table {
         height: 1fr;
-    }
-    ReadingListsPane #rl-paper-hints {
-        height: 1;
-        padding: 0 1;
-        color: $text-muted;
     }
     """
 
@@ -84,6 +74,8 @@ class ReadingListsPane(Vertical):
         self._items: list[ReadingList] = []
         # Papers in the currently selected list
         self._papers: list[ReadingListPaper] = []
+        # Paper detail objects keyed by arxiv_id (for title/category display)
+        self._paper_details: dict = {}
         # Sort newest-first by default
         self._sort_newest_first: bool = True
 
@@ -94,28 +86,27 @@ class ReadingListsPane(Vertical):
     def compose(self) -> ComposeResult:
         with Horizontal(id="rl-body"):
             with Vertical(id="rl-left"):
-                yield Static("Reading Lists", id="rl-left-title")
-                yield ListView(id="rl-list-view")
                 yield Static(
-                    "[dim][n] New List  [f] Folder  [Del] Delete  [e] Rename[/dim]",
-                    id="rl-left-hints",
+                    "Reading Lists  [dim][n] New  [f] Folder  [Del] Delete  [e] Rename[/dim]",
+                    id="rl-left-title",
                 )
+                yield ListView(id="rl-list-view")
 
             with Vertical(id="rl-right"):
-                yield Static("Select a list", id="rl-right-title")
-                yield DataTable(id="rl-papers-table", cursor_type="row", zebra_stripes=True)
                 yield Static(
-                    "[dim][Del] Remove  [s] Toggle Sort  [m] Move  [c] Copy[/dim]",
-                    id="rl-paper-hints",
+                    "Select a list  [dim][Del] Remove  [s] Sort  [m] Move  [c] Copy[/dim]",
+                    id="rl-right-title",
                 )
+                yield DataTable(id="rl-papers-table", cursor_type="row", zebra_stripes=True)
 
     def on_mount(self) -> None:
         table = self.query_one("#rl-papers-table", DataTable)
-        table.add_column("#", key="idx", width=4)
-        table.add_column("arXiv ID", key="arxiv_id", width=18)
+        table.add_column("#", key="idx", width=3)
+        table.add_column("arXiv ID", key="arxiv_id", width=14)
         table.add_column("Title", key="title")
-        table.add_column("Added", key="added", width=12)
-        table.add_column("Status", key="status", width=10)
+        table.add_column("Category", key="category", width=8)
+        table.add_column("Added", key="added", width=11)
+        table.add_column("Status", key="status", width=8)
         self._load_lists()
 
     # =========================================================================
@@ -125,9 +116,17 @@ class ReadingListsPane(Vertical):
     @work(thread=True, exclusive=True, group="rl-load-lists")
     def _load_lists(self) -> None:
         items = self.app.bridge.reading_lists.get_top_level()
-        self.app.call_from_thread(self._populate_lists, items)
+        # Pre-fetch counts in worker thread to avoid DB issues on main thread
+        counts: dict[int, int] = {}
+        for it in items:
+            try:
+                papers = self.app.bridge.reading_lists.get_papers_by_list_id(it.id)
+                counts[it.id] = len(papers)
+            except Exception:
+                counts[it.id] = 0
+        self.app.call_from_thread(self._populate_lists, items, counts)
 
-    def _populate_lists(self, items: list[ReadingList]) -> None:
+    def _populate_lists(self, items: list[ReadingList], counts: dict[int, int]) -> None:
         """Build a flat list for the ListView:
         system lists first, then a separator label, then user items.
         """
@@ -141,7 +140,7 @@ class ReadingListsPane(Vertical):
         # System lists (pinned at top)
         for it in system_items:
             icon = "📁" if it.is_folder else "📋"
-            count = self._paper_count(it.id)
+            count = counts.get(it.id, 0)
             label = f"{icon} {it.name} ({count})"
             idx = len(self._items)
             self._items.append(it)
@@ -154,7 +153,7 @@ class ReadingListsPane(Vertical):
         # User folders and lists
         for it in user_items:
             icon = "📁" if it.is_folder else "📋"
-            count = self._paper_count(it.id)
+            count = counts.get(it.id, 0)
             label = f"{icon} {it.name} ({count})"
             idx = len(self._items)
             self._items.append(it)
@@ -165,17 +164,6 @@ class ReadingListsPane(Vertical):
                 "No lists — press [n] to create or [f] for a folder"
             )
 
-    def _paper_count(self, list_id: int) -> int:
-        """Synchronously get paper count; safe to call from main thread (on mount only
-        from worker). Called during populate which runs in the main thread after worker
-        finishes — but the worker already fetched the list items, so we do a quick
-        in-line count here.  Falls back to 0 on any error."""
-        try:
-            papers = self.app.bridge.reading_lists.get_papers_by_list_id(list_id)
-            return len(papers)
-        except Exception:
-            return 0
-
     # =========================================================================
     # Right panel population
     # =========================================================================
@@ -185,23 +173,47 @@ class ReadingListsPane(Vertical):
         if not self._current_list:
             return
         papers = self.app.bridge.reading_lists.get_papers_by_list_id(self._current_list.id)
-        self.app.call_from_thread(self._populate_papers, papers)
+        # Fetch paper details for titles and categories in worker thread
+        paper_details: dict = {}
+        for p in papers:
+            try:
+                detail = self.app.bridge.papers.get_paper(p.arxiv_id)
+                if detail:
+                    paper_details[p.arxiv_id] = detail
+            except Exception:
+                pass
+        self.app.call_from_thread(self._populate_papers, papers, paper_details)
 
     def _sorted_papers(self, papers: list[ReadingListPaper]) -> list[ReadingListPaper]:
         return sorted(papers, key=lambda p: p.added_at, reverse=self._sort_newest_first)
 
-    def _populate_papers(self, papers: list[ReadingListPaper]) -> None:
+    def _populate_papers(
+        self,
+        papers: list[ReadingListPaper],
+        paper_details: dict | None = None,
+    ) -> None:
         self._papers = papers
+        if paper_details is not None:
+            self._paper_details = paper_details
         assert self._current_list is not None
         sort_label = "newest first" if self._sort_newest_first else "oldest first"
         self.query_one("#rl-right-title", Static).update(
-            f"{self._current_list.name} — {len(papers)} paper(s) [{sort_label}] (s=toggle)"
+            f"{self._current_list.name} — {len(papers)} paper(s) [{sort_label}]  "
+            "[dim][Del] Remove  [s] Sort  [m] Move  [c] Copy[/dim]"
         )
         table = self.query_one("#rl-papers-table", DataTable)
         table.clear()
         for i, p in enumerate(self._sorted_papers(papers), 1):
             added = p.added_at.strftime("%Y-%m-%d")
-            table.add_row(str(i), p.arxiv_id, "", added, p.status.value, key=str(p.id))
+            detail = self._paper_details.get(p.arxiv_id)
+            if detail:
+                raw_title = detail.title
+                title = raw_title[:50] + "..." if len(raw_title) > 50 else raw_title
+                cat = detail.primary_category
+            else:
+                title = ""
+                cat = ""
+            table.add_row(str(i), p.arxiv_id, title, cat, added, p.status.value, key=str(p.id))
 
     # =========================================================================
     # Event handlers
@@ -227,6 +239,24 @@ class ReadingListsPane(Vertical):
             else:
                 self._current_list = selected
                 self._load_papers()
+
+    @on(DataTable.RowSelected, "#rl-papers-table")
+    def _on_paper_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Open paper detail screen when a paper row is selected."""
+        key_str = event.row_key.value if hasattr(event.row_key, "value") else str(event.row_key)
+        try:
+            paper_id = int(key_str)
+        except ValueError:
+            return
+        paper = next((p for p in self._papers if p.id == paper_id), None)
+        if paper:
+            detail = self._paper_details.get(paper.arxiv_id)
+            if detail:
+                from ...core.models import RecommendedPaper
+                from .paper_detail import PaperDetailScreen
+
+                rec = RecommendedPaper(paper=detail, score=0.0, summary=None)
+                self.app.push_screen(PaperDetailScreen(rec))
 
     # =========================================================================
     # Actions

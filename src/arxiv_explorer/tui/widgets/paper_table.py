@@ -127,7 +127,11 @@ class PaperTable(Vertical):
         self._refresh_row_labels()
 
     def _refresh_row_labels(self) -> None:
-        """Update the # column with colored ★ (author) and ✓ (bookmarked) indicators."""
+        """Update row cells with colored indicators for bookmarked/author-matched papers.
+
+        Author rows get warm yellow (#f9e2af), bookmarked rows get soft green (#a6e3a1).
+        The style is applied to ALL cells so the entire row appears highlighted.
+        """
         from rich.text import Text
 
         table = self.query_one("#pt-table", DataTable)
@@ -135,20 +139,43 @@ class PaperTable(Vertical):
             arxiv_id = rec.paper.arxiv_id
             is_author = arxiv_id in self._author_matched
             is_bookmarked = arxiv_id in self._bookmarked
-            num = str(i + 1)
 
-            if is_author or is_bookmarked:
-                label = Text()
-                if is_author:
-                    label.append("★", style="bold #f9e2af")
-                if is_bookmarked:
-                    label.append("✓", style="bold #a6e3a1")
-                label.append(num)
+            # Determine row highlight style
+            if is_author:
+                style = "#f9e2af"
+            elif is_bookmarked:
+                style = "#a6e3a1"
             else:
-                label = Text(num)
+                style = ""
+
+            # Build # cell with indicator prefix
+            num = str(i + 1)
+            if is_author or is_bookmarked:
+                idx_cell = Text()
+                if is_author:
+                    idx_cell.append("★", style="bold #f9e2af")
+                if is_bookmarked:
+                    idx_cell.append("✓", style="bold #a6e3a1")
+                idx_cell.append(num)
+            else:
+                idx_cell = Text(num)
+
+            # Build remaining cells — apply row style when highlighted
+            p = rec.paper
+            title = p.title[:80] + "..." if len(p.title) > 80 else p.title
 
             try:
-                table.update_cell(arxiv_id, "idx", label)
+                table.update_cell(arxiv_id, "idx", idx_cell)
+                if style:
+                    table.update_cell(arxiv_id, "arxiv_id", Text(p.arxiv_id, style=style))
+                    table.update_cell(arxiv_id, "title", Text(title, style=style))
+                    table.update_cell(arxiv_id, "category", Text(p.primary_category, style=style))
+                    table.update_cell(arxiv_id, "score", Text(f"{rec.score:.2f}", style=style))
+                else:
+                    table.update_cell(arxiv_id, "arxiv_id", p.arxiv_id)
+                    table.update_cell(arxiv_id, "title", title)
+                    table.update_cell(arxiv_id, "category", p.primary_category)
+                    table.update_cell(arxiv_id, "score", f"{rec.score:.2f}")
             except Exception:
                 pass
 
