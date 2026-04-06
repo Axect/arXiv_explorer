@@ -1,6 +1,7 @@
 use crossterm::event::{KeyCode, MouseEvent, MouseEventKind};
 
 use crate::app::{App, ConfirmAction, Tab};
+use crate::categories;
 
 // =============================================================================
 // Global key handler
@@ -17,6 +18,12 @@ pub fn handle_key(app: &mut App, key: KeyCode) -> bool {
     // Paper detail overlay takes priority over all other handlers
     if app.detail.is_some() {
         handle_detail_key(app, key);
+        return false;
+    }
+
+    // Input overlay takes priority
+    if app.overlay.is_some() {
+        handle_overlay_key(app, key);
         return false;
     }
 
@@ -131,6 +138,121 @@ pub fn handle_confirm_key(app: &mut App, key: KeyCode) {
 }
 
 // =============================================================================
+// Input Overlay (Category Picker / Keyword Input)
+// =============================================================================
+
+pub fn handle_overlay_key(app: &mut App, key: KeyCode) {
+    let overlay = match app.overlay.take() {
+        Some(o) => o,
+        None => return,
+    };
+
+    match overlay {
+        crate::app::OverlayMode::CategoryPicker { mut search, mut filtered, mut selected } => {
+            match key {
+                KeyCode::Esc => {
+                    app.overlay = None;
+                }
+                KeyCode::Enter => {
+                    if let Some(&idx) = filtered.get(selected) {
+                        let (code, _desc) = categories::ARXIV_CATEGORIES[idx];
+                        let exists = app.prefs.categories.iter().any(|c| c.category == code);
+                        if exists {
+                            app.push_toast(format!("{code} already added"), false);
+                            app.overlay = Some(crate::app::OverlayMode::CategoryPicker { search, filtered, selected });
+                        } else {
+                            match app.db.add_category(code, 1) {
+                                Ok(_) => {
+                                    app.prefs.categories = app.db.get_categories().unwrap_or_default();
+                                    app.push_toast(format!("Added: {code}"), false);
+                                    app.overlay = None;
+                                }
+                                Err(e) => {
+                                    app.push_toast(format!("Error: {e}"), true);
+                                    app.overlay = Some(crate::app::OverlayMode::CategoryPicker { search, filtered, selected });
+                                }
+                            }
+                        }
+                    }
+                }
+                KeyCode::Up => {
+                    if selected > 0 {
+                        selected -= 1;
+                    }
+                    app.overlay = Some(crate::app::OverlayMode::CategoryPicker { search, filtered, selected });
+                }
+                KeyCode::Down => {
+                    if selected + 1 < filtered.len() {
+                        selected += 1;
+                    }
+                    app.overlay = Some(crate::app::OverlayMode::CategoryPicker { search, filtered, selected });
+                }
+                KeyCode::Backspace => {
+                    search.pop();
+                    filtered = categories::filter_categories(&search);
+                    selected = 0;
+                    app.overlay = Some(crate::app::OverlayMode::CategoryPicker { search, filtered, selected });
+                }
+                KeyCode::Char(c) => {
+                    search.push(c);
+                    filtered = categories::filter_categories(&search);
+                    selected = 0;
+                    app.overlay = Some(crate::app::OverlayMode::CategoryPicker { search, filtered, selected });
+                }
+                _ => {
+                    app.overlay = Some(crate::app::OverlayMode::CategoryPicker { search, filtered, selected });
+                }
+            }
+        }
+        crate::app::OverlayMode::KeywordInput { mut text, mut weight } => {
+            match key {
+                KeyCode::Esc => {
+                    app.overlay = None;
+                }
+                KeyCode::Enter => {
+                    let trimmed = text.trim().to_string();
+                    if trimmed.is_empty() {
+                        app.push_toast("Enter a keyword", false);
+                        app.overlay = Some(crate::app::OverlayMode::KeywordInput { text, weight });
+                    } else {
+                        match app.db.add_keyword(&trimmed, weight) {
+                            Ok(_) => {
+                                app.prefs.keywords = app.db.get_keywords().unwrap_or_default();
+                                app.push_toast(format!("Added: {trimmed}"), false);
+                                app.overlay = None;
+                            }
+                            Err(e) => {
+                                app.push_toast(format!("Error: {e}"), true);
+                                app.overlay = Some(crate::app::OverlayMode::KeywordInput { text, weight });
+                            }
+                        }
+                    }
+                }
+                KeyCode::Left => {
+                    weight = (weight - 1).max(1);
+                    app.overlay = Some(crate::app::OverlayMode::KeywordInput { text, weight });
+                }
+                KeyCode::Right => {
+                    weight = (weight + 1).min(5);
+                    app.overlay = Some(crate::app::OverlayMode::KeywordInput { text, weight });
+                }
+                KeyCode::Backspace => {
+                    text.pop();
+                    app.overlay = Some(crate::app::OverlayMode::KeywordInput { text, weight });
+                }
+                KeyCode::Char(c) => {
+                    text.push(c);
+                    app.overlay = Some(crate::app::OverlayMode::KeywordInput { text, weight });
+                }
+                _ => {
+                    app.overlay = Some(crate::app::OverlayMode::KeywordInput { text, weight });
+                }
+            }
+        }
+    }
+}
+
+// =============================================================================
 // AI trigger helpers
 // =============================================================================
 
@@ -148,6 +270,7 @@ fn trigger_summarize(app: &mut App) {
             job_type: crate::app::JobType::Summarize,
             status: crate::app::JobStatus::Running,
             started_at: std::time::Instant::now(),
+            elapsed_secs: None,
         });
         crate::commands::ai::run_summarize(tx, job_id, arxiv_id);
     }
@@ -167,6 +290,7 @@ fn trigger_translate(app: &mut App) {
             job_type: crate::app::JobType::Translate,
             status: crate::app::JobStatus::Running,
             started_at: std::time::Instant::now(),
+            elapsed_secs: None,
         });
         crate::commands::ai::run_translate(tx, job_id, arxiv_id);
     }
@@ -346,6 +470,7 @@ pub fn handle_detail_key(app: &mut App, key: KeyCode) {
                     job_type: crate::app::JobType::Review,
                     status: crate::app::JobStatus::Running,
                     started_at: std::time::Instant::now(),
+                    elapsed_secs: None,
                 });
                 crate::commands::ai::run_review(tx, job_id, arxiv_id);
             }
@@ -832,7 +957,40 @@ pub fn handle_notes_key(app: &mut App, key: KeyCode) {
 pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
     match key {
         KeyCode::Tab => {
+            // Auto-normalize weights when leaving the weights section
+            if app.prefs.focus_section == 3 {
+                let total: i64 = app.prefs.weights.iter().sum();
+                if total != 100 && total > 0 {
+                    let mut result = [0i64; 4];
+                    let mut distributed = 0i64;
+                    for i in 0..4 {
+                        result[i] = (app.prefs.weights[i] * 100 + total / 2) / total;
+                        distributed += result[i];
+                    }
+                    // Fix rounding
+                    let diff = 100 - distributed;
+                    if diff != 0 {
+                        let max_idx = result.iter().enumerate().max_by_key(|(_, v)| **v).map(|(i, _)| i).unwrap_or(0);
+                        result[max_idx] += diff;
+                    }
+                    app.prefs.weights = result;
+                    let _ = app.db.set_weights(result);
+                    app.push_toast("Weights normalized to 100%", false);
+                } else if total == 0 {
+                    app.prefs.weights = [60, 20, 15, 5];
+                    let _ = app.db.set_weights(app.prefs.weights);
+                    app.push_toast("Weights reset to defaults", false);
+                }
+            }
             app.prefs.focus_section = (app.prefs.focus_section + 1) % 5;
+        }
+        // Reset weights to default
+        KeyCode::Char('D') => {
+            if app.prefs.focus_section == 3 {
+                app.prefs.weights = [60, 20, 15, 5];
+                let _ = app.db.set_weights(app.prefs.weights);
+                app.push_toast("Weights reset to defaults", false);
+            }
         }
         KeyCode::Down | KeyCode::Char('K') => {
             let sec = app.prefs.focus_section;
@@ -862,15 +1020,40 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
         }
         KeyCode::Left | KeyCode::Char('h') => {
             match app.prefs.focus_section {
+                0 => {
+                    // Decrease category priority
+                    let sel = app.prefs.section_selected[0];
+                    if let Some(cat) = app.prefs.categories.get(sel) {
+                        let new_pri = (cat.priority - 1).max(1);
+                        if new_pri != cat.priority {
+                            let cat_name = cat.category.clone();
+                            let _ = app.db.set_category_priority(&cat_name, new_pri);
+                            app.prefs.categories = app.db.get_categories().unwrap_or_default();
+                        }
+                    }
+                }
+                1 => {
+                    // Decrease keyword weight (1-5 stars)
+                    let sel = app.prefs.section_selected[1];
+                    if let Some(kw) = app.prefs.keywords.get(sel) {
+                        let new_w = (kw.weight - 1).max(1);
+                        if new_w != kw.weight {
+                            let kw_name = kw.keyword.clone();
+                            let _ = app.db.set_keyword_weight(&kw_name, new_w);
+                            app.prefs.keywords = app.db.get_keywords().unwrap_or_default();
+                        }
+                    }
+                }
                 3 => {
+                    // Decrease weight by 1 (no normalize)
                     let idx = app.prefs.selected;
-                    let new_weights =
-                        adjust_weights(idx, app.prefs.weights[idx] - 5, app.prefs.weights);
-                    app.prefs.weights = new_weights;
-                    let _ = app.db.set_weights(new_weights);
+                    let new_val = (app.prefs.weights[idx] - 1).max(0);
+                    if new_val != app.prefs.weights[idx] {
+                        app.prefs.weights[idx] = new_val;
+                        let _ = app.db.set_weights(app.prefs.weights);
+                    }
                 }
                 4 => {
-                    // cycle backwards through config options
                     cycle_config_option(app, false);
                 }
                 _ => {}
@@ -878,16 +1061,58 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
         }
         KeyCode::Right | KeyCode::Char('l') => {
             match app.prefs.focus_section {
+                0 => {
+                    // Increase category priority
+                    let sel = app.prefs.section_selected[0];
+                    if let Some(cat) = app.prefs.categories.get(sel) {
+                        let new_pri = cat.priority + 1;
+                        let cat_name = cat.category.clone();
+                        let _ = app.db.set_category_priority(&cat_name, new_pri);
+                        app.prefs.categories = app.db.get_categories().unwrap_or_default();
+                    }
+                }
+                1 => {
+                    // Increase keyword weight (1-5 stars)
+                    let sel = app.prefs.section_selected[1];
+                    if let Some(kw) = app.prefs.keywords.get(sel) {
+                        let new_w = (kw.weight + 1).min(5);
+                        if new_w != kw.weight {
+                            let kw_name = kw.keyword.clone();
+                            let _ = app.db.set_keyword_weight(&kw_name, new_w);
+                            app.prefs.keywords = app.db.get_keywords().unwrap_or_default();
+                        }
+                    }
+                }
                 3 => {
+                    // Increase weight by 1 (no normalize)
                     let idx = app.prefs.selected;
-                    let new_weights =
-                        adjust_weights(idx, app.prefs.weights[idx] + 5, app.prefs.weights);
-                    app.prefs.weights = new_weights;
-                    let _ = app.db.set_weights(new_weights);
+                    let new_val = (app.prefs.weights[idx] + 1).min(100);
+                    if new_val != app.prefs.weights[idx] {
+                        app.prefs.weights[idx] = new_val;
+                        let _ = app.db.set_weights(app.prefs.weights);
+                    }
                 }
                 4 => {
-                    // cycle forwards through config options
                     cycle_config_option(app, true);
+                }
+                _ => {}
+            }
+        }
+        KeyCode::Char('a') => {
+            match app.prefs.focus_section {
+                0 => {
+                    let filtered = categories::filter_categories("");
+                    app.overlay = Some(crate::app::OverlayMode::CategoryPicker {
+                        search: String::new(),
+                        filtered,
+                        selected: 0,
+                    });
+                }
+                1 => {
+                    app.overlay = Some(crate::app::OverlayMode::KeywordInput {
+                        text: String::new(),
+                        weight: 3,
+                    });
                 }
                 _ => {}
             }
@@ -979,55 +1204,3 @@ fn cycle_config_option(app: &mut App, forward: bool) {
     }
 }
 
-// =============================================================================
-// Weight adjustment helper
-// =============================================================================
-
-/// Adjust weights so that changing `weights[changed]` to `new_value` keeps
-/// the total at 100. The remaining budget is distributed proportionally among
-/// the other three weights. All values are clamped to [0, 100].
-pub fn adjust_weights(changed: usize, new_value: i64, weights: [i64; 4]) -> [i64; 4] {
-    let clamped = new_value.max(0).min(100);
-    let remaining = 100 - clamped;
-
-    // Sum of the other weights
-    let other_sum: i64 = weights
-        .iter()
-        .enumerate()
-        .filter(|(i, _)| *i != changed)
-        .map(|(_, &w)| w)
-        .sum();
-
-    let mut result = weights;
-    result[changed] = clamped;
-
-    if other_sum == 0 {
-        // Distribute evenly
-        let per = remaining / 3;
-        let mut leftover = remaining - per * 3;
-        for i in 0..4 {
-            if i != changed {
-                result[i] = per + if leftover > 0 { leftover -= 1; 1 } else { 0 };
-            }
-        }
-    } else {
-        // Distribute proportionally
-        let mut distributed = 0i64;
-        let mut last_idx = None;
-        for i in 0..4 {
-            if i != changed {
-                let share = (weights[i] as f64 / other_sum as f64 * remaining as f64).round() as i64;
-                result[i] = share;
-                distributed += share;
-                last_idx = Some(i);
-            }
-        }
-        // Fix rounding error on last non-changed index
-        if let Some(last) = last_idx {
-            result[last] += remaining - distributed;
-            result[last] = result[last].max(0);
-        }
-    }
-
-    result
-}
