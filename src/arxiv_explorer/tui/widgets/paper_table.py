@@ -127,16 +127,26 @@ class PaperTable(Vertical):
         self._refresh_row_labels()
 
     def _refresh_row_labels(self) -> None:
-        """Update the # column with ★ (author) and ✓ (bookmarked) indicators."""
+        """Update the # column with colored ★ (author) and ✓ (bookmarked) indicators."""
+        from rich.text import Text
+
         table = self.query_one("#pt-table", DataTable)
         for i, rec in enumerate(self._papers):
             arxiv_id = rec.paper.arxiv_id
-            prefix = ""
-            if arxiv_id in self._author_matched:
-                prefix += "★"
-            if arxiv_id in self._bookmarked:
-                prefix += "✓"
-            label = f"{prefix}{i + 1}" if prefix else str(i + 1)
+            is_author = arxiv_id in self._author_matched
+            is_bookmarked = arxiv_id in self._bookmarked
+            num = str(i + 1)
+
+            if is_author or is_bookmarked:
+                label = Text()
+                if is_author:
+                    label.append("★", style="bold #f9e2af")
+                if is_bookmarked:
+                    label.append("✓", style="bold #a6e3a1")
+                label.append(num)
+            else:
+                label = Text(num)
+
             try:
                 table.update_cell(arxiv_id, "idx", label)
             except Exception:
