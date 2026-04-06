@@ -121,8 +121,11 @@ class ReadingList:
 
     id: int
     name: str
-    description: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.now)
+    description: Optional[str]
+    parent_id: Optional[int]
+    is_folder: bool
+    is_system: bool
+    created_at: datetime
 
 
 @dataclass

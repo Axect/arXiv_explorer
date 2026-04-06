@@ -3,8 +3,23 @@
 from datetime import datetime
 from typing import Optional
 
+import sqlite3
+
 from ..core.database import get_connection
 from ..core.models import ReadingList, ReadingListPaper, ReadingStatus
+
+
+def _row_to_reading_list(row: sqlite3.Row) -> ReadingList:
+    """Convert a database row to a ReadingList instance."""
+    return ReadingList(
+        id=row["id"],
+        name=row["name"],
+        description=row["description"],
+        parent_id=row["parent_id"],
+        is_folder=bool(row["is_folder"]),
+        is_system=bool(row["is_system"]),
+        created_at=datetime.fromisoformat(row["created_at"]),
+    )
 
 
 class ReadingListService:
@@ -14,18 +29,14 @@ class ReadingListService:
         """Create a reading list."""
         with get_connection() as conn:
             conn.execute(
-                "INSERT INTO reading_lists (name, description) VALUES (?, ?)", (name, description)
+                "INSERT INTO reading_lists (name, description, parent_id, is_folder, is_system) VALUES (?, ?, NULL, 0, 0)",
+                (name, description),
             )
             conn.commit()
 
             row = conn.execute("SELECT * FROM reading_lists WHERE name = ?", (name,)).fetchone()
 
-            return ReadingList(
-                id=row["id"],
-                name=row["name"],
-                description=row["description"],
-                created_at=datetime.fromisoformat(row["created_at"]),
-            )
+            return _row_to_reading_list(row)
 
     def delete_list(self, name: str) -> bool:
         """Delete a reading list."""
@@ -40,12 +51,7 @@ class ReadingListService:
             row = conn.execute("SELECT * FROM reading_lists WHERE name = ?", (name,)).fetchone()
 
             if row:
-                return ReadingList(
-                    id=row["id"],
-                    name=row["name"],
-                    description=row["description"],
-                    created_at=datetime.fromisoformat(row["created_at"]),
-                )
+                return _row_to_reading_list(row)
             return None
 
     def get_all_lists(self) -> list[ReadingList]:
@@ -53,15 +59,7 @@ class ReadingListService:
         with get_connection() as conn:
             rows = conn.execute("SELECT * FROM reading_lists ORDER BY created_at DESC").fetchall()
 
-            return [
-                ReadingList(
-                    id=row["id"],
-                    name=row["name"],
-                    description=row["description"],
-                    created_at=datetime.fromisoformat(row["created_at"]),
-                )
-                for row in rows
-            ]
+            return [_row_to_reading_list(row) for row in rows]
 
     def add_paper(self, list_name: str, arxiv_id: str) -> bool:
         """Add a paper to a list."""
