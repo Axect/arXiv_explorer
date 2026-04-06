@@ -74,9 +74,7 @@ def tui():
         if candidate.exists():
             bin_path = str(candidate)
         else:
-            typer.echo(
-                "axp-tui not found. Build it with: cd tui-rs && cargo build --release"
-            )
+            typer.echo("axp-tui not found. Build it with: cd tui-rs && cargo build --release")
             raise typer.Exit(1)
 
     raise typer.Exit(subprocess.call([bin_path]))
