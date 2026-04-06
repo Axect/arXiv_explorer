@@ -1,9 +1,7 @@
 """Tests for daily fetch cache in ArxivClient."""
 
-import hashlib
 import json
 from datetime import datetime
-from unittest.mock import patch
 
 import pytest
 
@@ -92,11 +90,3 @@ class TestFetchCache:
         with get_connection() as conn:
             row = conn.execute("SELECT COUNT(*) FROM daily_fetch_cache").fetchone()
             assert row[0] == 0
-
-
-class TestDateRangeQuery:
-    def test_builds_date_range_query(self, client: ArxivClient):
-        query = client._build_date_range_query(["cs.LG", "hep-ph"], days=7)
-        assert "cat:cs.LG" in query
-        assert "cat:hep-ph" in query
-        assert "submittedDate:" in query

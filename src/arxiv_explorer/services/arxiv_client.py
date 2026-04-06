@@ -60,7 +60,13 @@ class ArxivClient:
         days: int = 1,
         max_results: int = 200,
     ) -> list[Paper]:
-        """Fetch recent papers by category with smart caching."""
+        """Fetch recent papers by category with smart caching.
+
+        Uses category-only query (no submittedDate filter — arXiv's
+        submittedDate differs from published date and misses papers).
+        Scales API max_results proportionally to days, then post-filters
+        by published date.
+        """
         today_str = datetime.now().strftime("%Y-%m-%d")
         cat_hash = self._categories_hash(categories)
 
@@ -69,10 +75,16 @@ class ArxivClient:
         if cached is not None:
             return cached
 
-        # Cache miss — query arXiv with date range
+        # Cache miss — query arXiv (category only, scale results by days)
         self._cleanup_stale_cache()
-        query = self._build_date_range_query(categories, days)
-        papers = self.search(query, max_results=max_results)
+        cat_query = " OR ".join(f"cat:{cat}" for cat in categories)
+        api_max = min(days * 50, 2000)  # scale with days, cap at 2000
+        api_max = max(api_max, max_results)  # at least max_results
+        papers = self.search(cat_query, max_results=api_max)
+
+        # Post-filter by published date
+        start_date = datetime.now() - timedelta(days=days)
+        papers = [p for p in papers if p.published >= start_date]
 
         # Save cache entry
         paper_ids = [p.arxiv_id for p in papers]
@@ -159,16 +171,6 @@ class ArxivClient:
         """Deterministic hash of sorted category names."""
         key = ",".join(sorted(categories))
         return hashlib.sha256(key.encode()).hexdigest()[:16]
-
-    @staticmethod
-    def _build_date_range_query(categories: list[str], days: int) -> str:
-        """Build arXiv API query with date range."""
-        cat_query = " OR ".join(f"cat:{cat}" for cat in categories)
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
-        start_str = start_date.strftime("%Y%m%d") + "0000"
-        end_str = end_date.strftime("%Y%m%d") + "2359"
-        return f"({cat_query}) AND submittedDate:[{start_str} TO {end_str}]"
 
     def _get_fetch_cache(self, fetch_date: str, days: int, cat_hash: str) -> list[Paper] | None:
         """Look up cached fetch result. Returns papers or None."""
