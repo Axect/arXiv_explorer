@@ -174,7 +174,7 @@ fn render_tab_content(f: &mut Frame, app: &mut App, area: Rect) {
 
 fn render_key_hints(f: &mut Frame, app: &App, area: Rect) {
     let hints = match app.active_tab {
-        Tab::Daily => " D/f Days  N/n Limit  r Fetch  l Like  d Dislike  b Bookmark  q Quit",
+        Tab::Daily => " [/] Days  -/= Limit  r Fetch  l Like  d Dislike  b Bookmark  q Quit",
         Tab::Search => " ↑/k ↓/j Navigate  / Search  q Quit",
         Tab::Lists => " ↑/k ↓/j Navigate  Enter Open  q Quit",
         Tab::Notes => " ↑/k ↓/j Navigate  q Quit",
@@ -230,7 +230,7 @@ fn render_daily_table(f: &mut Frame, app: &mut App, area: Rect) {
 
     let total = app.daily.author_papers.len() + app.daily.scored_papers.len();
     let status = format!(
-        " Days:{} Limit:{} │ {} papers │ D/f:Days N/n:Limit r:Fetch",
+        " Days: ◀ {} ▶ ([/])  Limit: ◀ {} ▶ (-/=)  │ {} papers  │ r:Fetch",
         app.daily.days, app.daily.limit, total
     );
     let status_p = Paragraph::new(status)

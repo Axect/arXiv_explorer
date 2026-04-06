@@ -125,39 +125,27 @@ pub fn handle_daily_key(app: &mut App, key: KeyCode) {
                 }
             }
         }
-        // Adjust days: D/d = increase/decrease
-        KeyCode::Char('D') => {
+        // Cycle days: [ = prev, ] = next (1→3→7→14→30)
+        KeyCode::Char('[') => {
             let options = [1, 3, 7, 14, 30];
-            if let Some(pos) = options.iter().position(|&d| d == app.daily.days) {
-                if pos + 1 < options.len() {
-                    app.daily.days = options[pos + 1];
-                }
-            }
+            let pos = options.iter().position(|&d| d == app.daily.days).unwrap_or(2);
+            app.daily.days = options[if pos == 0 { options.len() - 1 } else { pos - 1 }];
         }
-        KeyCode::Char('f') => {
+        KeyCode::Char(']') => {
             let options = [1, 3, 7, 14, 30];
-            if let Some(pos) = options.iter().position(|&d| d == app.daily.days) {
-                if pos > 0 {
-                    app.daily.days = options[pos - 1];
-                }
-            }
+            let pos = options.iter().position(|&d| d == app.daily.days).unwrap_or(2);
+            app.daily.days = options[(pos + 1) % options.len()];
         }
-        // Adjust limit: L/l shift = increase/decrease
-        KeyCode::Char('N') => {
+        // Cycle limit: - = prev, = = next (10→20→50→100)
+        KeyCode::Char('-') => {
             let options = [10, 20, 50, 100];
-            if let Some(pos) = options.iter().position(|&n| n == app.daily.limit) {
-                if pos + 1 < options.len() {
-                    app.daily.limit = options[pos + 1];
-                }
-            }
+            let pos = options.iter().position(|&n| n == app.daily.limit).unwrap_or(1);
+            app.daily.limit = options[if pos == 0 { options.len() - 1 } else { pos - 1 }];
         }
-        KeyCode::Char('n') => {
+        KeyCode::Char('=') => {
             let options = [10, 20, 50, 100];
-            if let Some(pos) = options.iter().position(|&n| n == app.daily.limit) {
-                if pos > 0 {
-                    app.daily.limit = options[pos - 1];
-                }
-            }
+            let pos = options.iter().position(|&n| n == app.daily.limit).unwrap_or(1);
+            app.daily.limit = options[(pos + 1) % options.len()];
         }
         // Refresh / fetch
         KeyCode::Char('r') | KeyCode::Char('R') => {
