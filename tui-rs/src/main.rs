@@ -174,7 +174,7 @@ fn render_tab_content(f: &mut Frame, app: &mut App, area: Rect) {
 
 fn render_key_hints(f: &mut Frame, app: &App, area: Rect) {
     let hints = match app.active_tab {
-        Tab::Daily => " ↑/k ↓/j Navigate  l Like  d Dislike  b Bookmark  r Refresh  q Quit",
+        Tab::Daily => " D/f Days  N/n Limit  r Fetch  l Like  d Dislike  b Bookmark  q Quit",
         Tab::Search => " ↑/k ↓/j Navigate  / Search  q Quit",
         Tab::Lists => " ↑/k ↓/j Navigate  Enter Open  q Quit",
         Tab::Notes => " ↑/k ↓/j Navigate  q Quit",
@@ -201,7 +201,10 @@ fn render_daily(f: &mut Frame, app: &mut App, area: Rect) {
     let total = app.daily.author_papers.len() + app.daily.scored_papers.len();
 
     if total == 0 {
-        let msg = Paragraph::new("No papers loaded. Press 'r' to fetch.")
+        let msg = Paragraph::new(format!(
+            "No papers loaded. Days={} Limit={}  Press 'r' to fetch.  D/f=Days  N/n=Limit",
+            app.daily.days, app.daily.limit
+        ))
             .style(Style::default().fg(TEXT_DIM).bg(BG))
             .alignment(Alignment::Center);
         f.render_widget(msg, area);
@@ -219,6 +222,23 @@ fn render_daily(f: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn render_daily_table(f: &mut Frame, app: &mut App, area: Rect) {
+    // Status bar + table
+    let sub = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Min(0)])
+        .split(area);
+
+    let total = app.daily.author_papers.len() + app.daily.scored_papers.len();
+    let status = format!(
+        " Days:{} Limit:{} │ {} papers │ D/f:Days N/n:Limit r:Fetch",
+        app.daily.days, app.daily.limit, total
+    );
+    let status_p = Paragraph::new(status)
+        .style(Style::default().fg(TEXT_DIM).bg(SURFACE));
+    f.render_widget(status_p, sub[0]);
+
+    let area = sub[1];
+
     // Build rows: author section header + papers, then scored section header + papers
     let author_len = app.daily.author_papers.len();
     let scored_len = app.daily.scored_papers.len();

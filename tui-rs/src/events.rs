@@ -125,6 +125,40 @@ pub fn handle_daily_key(app: &mut App, key: KeyCode) {
                 }
             }
         }
+        // Adjust days: D/d = increase/decrease
+        KeyCode::Char('D') => {
+            let options = [1, 3, 7, 14, 30];
+            if let Some(pos) = options.iter().position(|&d| d == app.daily.days) {
+                if pos + 1 < options.len() {
+                    app.daily.days = options[pos + 1];
+                }
+            }
+        }
+        KeyCode::Char('f') => {
+            let options = [1, 3, 7, 14, 30];
+            if let Some(pos) = options.iter().position(|&d| d == app.daily.days) {
+                if pos > 0 {
+                    app.daily.days = options[pos - 1];
+                }
+            }
+        }
+        // Adjust limit: L/l shift = increase/decrease
+        KeyCode::Char('N') => {
+            let options = [10, 20, 50, 100];
+            if let Some(pos) = options.iter().position(|&n| n == app.daily.limit) {
+                if pos + 1 < options.len() {
+                    app.daily.limit = options[pos + 1];
+                }
+            }
+        }
+        KeyCode::Char('n') => {
+            let options = [10, 20, 50, 100];
+            if let Some(pos) = options.iter().position(|&n| n == app.daily.limit) {
+                if pos > 0 {
+                    app.daily.limit = options[pos - 1];
+                }
+            }
+        }
         // Refresh / fetch
         KeyCode::Char('r') | KeyCode::Char('R') => {
             if !app.daily.loading {
