@@ -146,6 +146,14 @@ fn render(f: &mut Frame, app: &mut App) {
         render_jobs_panel(f, app);
     }
 
+    // Input overlay (category picker / keyword input)
+    if let Some(ref overlay) = app.overlay {
+        match overlay {
+            app::OverlayMode::CategoryPicker { .. } => render_category_picker(f, app),
+            app::OverlayMode::KeywordInput { .. } => render_keyword_input(f, app),
+        }
+    }
+
     // Confirmation dialog on top of everything except toasts
     if app.confirm_action.is_some() {
         render_confirm_dialog(f, app);
@@ -1512,6 +1520,153 @@ fn render_jobs_panel(f: &mut Frame, app: &App) {
     let hints = Paragraph::new(" [↑↓] navigate  [c] clear done  [j/Esc] close")
         .style(Style::default().fg(TEXT_DIM).bg(SURFACE));
     f.render_widget(hints, chunks[1]);
+}
+
+// =============================================================================
+// Category picker overlay
+// =============================================================================
+
+fn render_category_picker(f: &mut Frame, app: &App) {
+    let area = f.area();
+    let w = (area.width * 60 / 100).max(50).min(area.width);
+    let h = (area.height * 70 / 100).max(12).min(area.height);
+    let x = (area.width.saturating_sub(w)) / 2;
+    let y = (area.height.saturating_sub(h)) / 2;
+    let overlay = Rect::new(x, y, w, h);
+
+    f.render_widget(Clear, overlay);
+
+    let block = Block::default()
+        .title(" Add Category ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(ACCENT))
+        .style(Style::default().bg(BG));
+    let inner = block.inner(overlay);
+    f.render_widget(block, overlay);
+
+    if let Some(crate::app::OverlayMode::CategoryPicker { search, filtered, selected }) = &app.overlay {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1), // search
+                Constraint::Length(1), // separator
+                Constraint::Min(0),   // list
+                Constraint::Length(1), // hints
+            ])
+            .split(inner);
+
+        // Search line
+        let search_line = Line::from(vec![
+            Span::styled(" Search: ", Style::default().fg(ACCENT).bold()),
+            Span::styled(format!("{}_", search), Style::default().fg(TEXT)),
+        ]);
+        f.render_widget(Paragraph::new(search_line).style(Style::default().bg(BG)), chunks[0]);
+
+        // Separator
+        f.render_widget(
+            Paragraph::new("─".repeat(chunks[1].width as usize))
+                .style(Style::default().fg(TEXT_DIM).bg(BG)),
+            chunks[1],
+        );
+
+        // Category list
+        let visible_height = chunks[2].height as usize;
+        let scroll_offset = if *selected >= visible_height {
+            selected - visible_height + 1
+        } else {
+            0
+        };
+
+        let mut lines: Vec<Line> = Vec::new();
+        for (i, &idx) in filtered.iter().enumerate().skip(scroll_offset).take(visible_height) {
+            let (code, desc) = categories::ARXIV_CATEGORIES[idx];
+            let is_sel = i == *selected;
+            let prefix = if is_sel { "► " } else { "  " };
+            let style = if is_sel {
+                Style::default().fg(BG).bg(ACCENT).bold()
+            } else {
+                Style::default().fg(TEXT).bg(BG)
+            };
+            lines.push(Line::from(Span::styled(
+                format!("{prefix}{:<16} {desc}", code),
+                style,
+            )));
+        }
+        f.render_widget(Paragraph::new(lines).style(Style::default().bg(BG)), chunks[2]);
+
+        // Hints
+        let count = filtered.len();
+        let hints = format!(" {count} matches  [↑↓] navigate  [Enter] add  [Esc] close");
+        f.render_widget(
+            Paragraph::new(hints).style(Style::default().fg(TEXT_DIM).bg(SURFACE)),
+            chunks[3],
+        );
+    }
+}
+
+// =============================================================================
+// Keyword input overlay
+// =============================================================================
+
+fn render_keyword_input(f: &mut Frame, app: &App) {
+    let area = f.area();
+    let w: u16 = 44;
+    let h: u16 = 6;
+    let x = (area.width.saturating_sub(w)) / 2;
+    let y = (area.height.saturating_sub(h)) / 2;
+    let overlay = Rect::new(x, y, w, h);
+
+    f.render_widget(Clear, overlay);
+
+    let block = Block::default()
+        .title(" Add Keyword ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(ACCENT))
+        .style(Style::default().bg(BG));
+    let inner = block.inner(overlay);
+    f.render_widget(block, overlay);
+
+    if let Some(crate::app::OverlayMode::KeywordInput { text, weight }) = &app.overlay {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1), // keyword
+                Constraint::Length(1), // weight
+                Constraint::Length(1), // separator
+                Constraint::Length(1), // hints
+            ])
+            .split(inner);
+
+        // Keyword line
+        let kw_line = Line::from(vec![
+            Span::styled(" Keyword: ", Style::default().fg(ACCENT).bold()),
+            Span::styled(format!("{text}_"), Style::default().fg(TEXT)),
+        ]);
+        f.render_widget(Paragraph::new(kw_line).style(Style::default().bg(BG)), chunks[0]);
+
+        // Weight line
+        let filled = *weight as usize;
+        let stars = "★".repeat(filled) + &"☆".repeat(5 - filled);
+        let wt_line = Line::from(vec![
+            Span::styled(" Weight:  ", Style::default().fg(ACCENT).bold()),
+            Span::styled(format!("{stars} ({weight})"), Style::default().fg(AUTHOR_HL)),
+        ]);
+        f.render_widget(Paragraph::new(wt_line).style(Style::default().bg(BG)), chunks[1]);
+
+        // Separator
+        f.render_widget(
+            Paragraph::new("─".repeat(chunks[2].width as usize))
+                .style(Style::default().fg(TEXT_DIM).bg(BG)),
+            chunks[2],
+        );
+
+        // Hints
+        f.render_widget(
+            Paragraph::new(" [←→] weight  [Enter] add  [Esc] close")
+                .style(Style::default().fg(TEXT_DIM).bg(SURFACE)),
+            chunks[3],
+        );
+    }
 }
 
 // =============================================================================
