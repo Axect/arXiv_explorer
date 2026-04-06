@@ -1,9 +1,8 @@
 """Reading list service."""
 
-from datetime import datetime, date
-from typing import Optional
-
 import sqlite3
+from datetime import date, datetime
+from typing import Optional
 
 from ..core.database import get_connection
 from ..core.models import ReadingList, ReadingListPaper, ReadingStatus
@@ -58,9 +57,7 @@ class ReadingListService:
 
             return _row_to_reading_list(row)
 
-    def create_folder(
-        self, name: str, parent_id: Optional[int] = None
-    ) -> ReadingList:
+    def create_folder(self, name: str, parent_id: Optional[int] = None) -> ReadingList:
         """Create a folder (is_folder=True)."""
         with get_connection() as conn:
             conn.execute(
@@ -91,9 +88,7 @@ class ReadingListService:
     def get_list(self, name: str) -> Optional[ReadingList]:
         """Get a reading list by name."""
         with get_connection() as conn:
-            row = conn.execute(
-                "SELECT * FROM reading_lists WHERE name = ?", (name,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM reading_lists WHERE name = ?", (name,)).fetchone()
 
             if row:
                 return _row_to_reading_list(row)
@@ -102,9 +97,7 @@ class ReadingListService:
     def get_list_by_id(self, list_id: int) -> Optional[ReadingList]:
         """Get a reading list by ID."""
         with get_connection() as conn:
-            row = conn.execute(
-                "SELECT * FROM reading_lists WHERE id = ?", (list_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM reading_lists WHERE id = ?", (list_id,)).fetchone()
 
             if row:
                 return _row_to_reading_list(row)
@@ -113,9 +106,7 @@ class ReadingListService:
     def get_all_lists(self) -> list[ReadingList]:
         """Get all reading lists."""
         with get_connection() as conn:
-            rows = conn.execute(
-                "SELECT * FROM reading_lists ORDER BY created_at DESC"
-            ).fetchall()
+            rows = conn.execute("SELECT * FROM reading_lists ORDER BY created_at DESC").fetchall()
 
             return [_row_to_reading_list(row) for row in rows]
 
@@ -192,9 +183,7 @@ class ReadingListService:
             conn.commit()
             return cursor.rowcount > 0
 
-    def move_paper(
-        self, from_list_id: int, to_list_id: int, arxiv_id: str
-    ) -> bool:
+    def move_paper(self, from_list_id: int, to_list_id: int, arxiv_id: str) -> bool:
         """Move a paper from one list to another."""
         with get_connection() as conn:
             # Check source exists
@@ -228,9 +217,7 @@ class ReadingListService:
             conn.commit()
             return True
 
-    def copy_paper(
-        self, from_list_id: int, to_list_id: int, arxiv_id: str
-    ) -> bool:
+    def copy_paper(self, from_list_id: int, to_list_id: int, arxiv_id: str) -> bool:
         """Copy a paper from one list to another (keeps original)."""
         with get_connection() as conn:
             # Check source exists
@@ -268,9 +255,7 @@ class ReadingListService:
             conn.commit()
             return cursor.rowcount > 0
 
-    def copy_list(
-        self, list_id: int, target_folder_id: int
-    ) -> Optional[ReadingList]:
+    def copy_list(self, list_id: int, target_folder_id: int) -> Optional[ReadingList]:
         """Copy a list (and all its papers) into a target folder."""
         source = self.get_list_by_id(list_id)
         if source is None:
@@ -303,14 +288,10 @@ class ReadingListService:
                 )
             conn.commit()
 
-            row = conn.execute(
-                "SELECT * FROM reading_lists WHERE id = ?", (new_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM reading_lists WHERE id = ?", (new_id,)).fetchone()
             return _row_to_reading_list(row)
 
-    def toggle_paper_in_month_folder(
-        self, arxiv_id: str, d: date
-    ) -> bool:
+    def toggle_paper_in_month_folder(self, arxiv_id: str, d: date) -> bool:
         """Toggle a paper in the month folder for the given date.
 
         Returns True if the paper was added, False if it was removed.
