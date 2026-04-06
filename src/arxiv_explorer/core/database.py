@@ -124,6 +124,17 @@ CREATE TABLE IF NOT EXISTS papers (
     cached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Daily fetch cache
+CREATE TABLE IF NOT EXISTS daily_fetch_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fetch_date TEXT NOT NULL,
+    days INTEGER NOT NULL,
+    categories_hash TEXT NOT NULL,
+    paper_ids TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(fetch_date, days, categories_hash)
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_interactions_arxiv ON paper_interactions(arxiv_id);
 CREATE INDEX IF NOT EXISTS idx_interactions_type ON paper_interactions(interaction_type);

@@ -20,6 +20,7 @@ EXPECTED_TABLES = {
     "papers",
     "paper_review_sections",
     "preferred_authors",
+    "daily_fetch_cache",
 }
 
 
