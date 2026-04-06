@@ -37,15 +37,18 @@ class PreferencesPane(Vertical):
     PreferencesPane {
         height: 1fr;
     }
+
+    /* Top: 3-column sections */
     PreferencesPane #prefs-body {
         height: 1fr;
     }
     PreferencesPane .pref-section {
         width: 1fr;
         padding: 0 1;
-    }
-    PreferencesPane .pref-section:first-child {
         border-right: tall $surface-lighten-1;
+    }
+    PreferencesPane .pref-section.last-section {
+        border-right: none;
     }
     PreferencesPane .pref-section-title {
         text-style: bold;
@@ -53,12 +56,11 @@ class PreferencesPane(Vertical):
         height: 1;
         margin-bottom: 1;
     }
-    PreferencesPane DataTable {
+    PreferencesPane .pref-section DataTable {
         height: 1fr;
     }
     PreferencesPane .pref-input-row {
         height: 3;
-        dock: bottom;
         padding: 0;
     }
     PreferencesPane .pref-input-row Input {
@@ -66,21 +68,22 @@ class PreferencesPane(Vertical):
         margin-right: 1;
     }
     PreferencesPane .pref-input-row Button {
-        min-width: 8;
-        margin-right: 1;
+        min-width: 10;
     }
     PreferencesPane .pref-hint {
         height: 1;
-        dock: bottom;
         color: $text-muted;
-        padding: 0 1;
+    }
+
+    /* Bottom panels: weights + config */
+    PreferencesPane #prefs-bottom {
+        height: auto;
+        max-height: 14;
     }
     PreferencesPane #weights-section {
-        height: auto;
-        max-height: 12;
-        dock: bottom;
+        width: 2fr;
         padding: 0 1;
-        margin-bottom: 1;
+        border-right: tall $surface-lighten-1;
     }
     PreferencesPane #weights-title {
         text-style: bold;
@@ -93,16 +96,12 @@ class PreferencesPane(Vertical):
     PreferencesPane #weights-footer {
         height: 1;
         color: $text-muted;
-        text-align: right;
     }
     PreferencesPane #weights-controls {
         height: 3;
-        dock: bottom;
     }
     PreferencesPane #ai-config-section {
-        height: auto;
-        max-height: 8;
-        dock: bottom;
+        width: 1fr;
         padding: 0 1;
     }
     PreferencesPane #ai-config-title {
@@ -111,7 +110,7 @@ class PreferencesPane(Vertical):
         height: 1;
     }
     PreferencesPane #ai-config-status {
-        height: 1;
+        height: auto;
         color: $text;
         margin-bottom: 1;
     }
@@ -131,7 +130,6 @@ class PreferencesPane(Vertical):
     }
     PreferencesPane #language-select {
         width: 16;
-        margin-right: 2;
     }
     """
 
@@ -143,63 +141,56 @@ class PreferencesPane(Vertical):
     ]
 
     def compose(self) -> ComposeResult:
+        # Top: 3-column data sections
         with Horizontal(id="prefs-body"):
-            # Category section
             with Vertical(classes="pref-section"):
                 yield Static("Categories", classes="pref-section-title")
                 yield DataTable(id="cat-table", cursor_type="row", zebra_stripes=True)
                 with Horizontal(classes="pref-input-row"):
-                    yield Button("Browse...", id="cat-browse", variant="default")
-                    yield Input(
-                        placeholder="Priority", id="cat-priority", type="integer", value="1"
-                    )
-                yield Static("[dim][Enter] Add  [Del] Remove[/dim]", classes="pref-hint")
+                    yield Button("Browse", id="cat-browse", variant="default")
+                    yield Input(placeholder="Pri", id="cat-priority", type="integer", value="1")
+                yield Static("[dim]Enter:Add  Del:Remove[/dim]", classes="pref-hint")
 
-            # Keyword section
             with Vertical(classes="pref-section"):
                 yield Static("Keywords", classes="pref-section-title")
                 yield DataTable(id="kw-table", cursor_type="row", zebra_stripes=True)
                 with Horizontal(classes="pref-input-row"):
                     yield Input(placeholder="Keyword", id="kw-input")
-                    yield Input(placeholder="Stars (1-5)", id="kw-weight", value="3")
-                yield Static("[dim][Enter] Add  [Del] Remove[/dim]", classes="pref-hint")
+                    yield Input(placeholder="★1-5", id="kw-weight", value="3")
+                yield Static("[dim]Enter:Add  Del:Remove[/dim]", classes="pref-hint")
 
-            # Authors section
-            with Vertical(classes="pref-section"):
+            with Vertical(classes="pref-section last-section"):
                 yield Static("Authors", classes="pref-section-title")
                 yield DataTable(id="author-table", cursor_type="row", zebra_stripes=True)
                 with Horizontal(classes="pref-input-row"):
                     yield Input(placeholder="Author name", id="author-input")
-                yield Static("[dim][Enter] Add  [Del] Remove[/dim]", classes="pref-hint")
+                yield Static("[dim]Enter:Add  Del:Remove[/dim]", classes="pref-hint")
 
-        # Recommendation Weights section
-        with Vertical(id="weights-section"):
-            yield Static("Recommendation Weights", id="weights-title")
-            yield DataTable(id="weights-table", cursor_type="row", zebra_stripes=True)
-            yield Static(
-                "Total: 100%  [dim]← → to adjust · Reset button to restore defaults[/dim]",
-                id="weights-footer",
-            )
-            with Horizontal(id="weights-controls"):
-                yield Button("Reset Weights", id="weights-reset", variant="warning")
+        # Bottom: weights + config side by side
+        with Horizontal(id="prefs-bottom"):
+            with Vertical(id="weights-section"):
+                yield Static("Recommendation Weights", id="weights-title")
+                yield DataTable(id="weights-table", cursor_type="row", zebra_stripes=True)
+                yield Static("", id="weights-footer")
+                with Horizontal(id="weights-controls"):
+                    yield Button("Reset", id="weights-reset", variant="warning")
 
-        # AI Config section
-        with Vertical(id="ai-config-section"):
-            yield Static("Configuration", id="ai-config-title")
-            yield Static("[dim]Loading...[/dim]", id="ai-config-status")
-            with Horizontal(id="ai-config-controls"):
-                yield Static("Provider:", classes="config-label")
-                yield Select(
-                    [(p.value, p.value) for p in AIProviderType],
-                    id="ai-provider-select",
-                    prompt="Provider",
-                )
-                yield Static("Lang:", classes="config-label")
-                yield Select(
-                    [(lang.value, lang.value) for lang in Language],
-                    id="language-select",
-                    prompt="Language",
-                )
+            with Vertical(id="ai-config-section"):
+                yield Static("Configuration", id="ai-config-title")
+                yield Static("[dim]Loading...[/dim]", id="ai-config-status")
+                with Horizontal(id="ai-config-controls"):
+                    yield Static("Provider:", classes="config-label")
+                    yield Select(
+                        [(p.value, p.value) for p in AIProviderType],
+                        id="ai-provider-select",
+                        prompt="Provider",
+                    )
+                    yield Static("Lang:", classes="config-label")
+                    yield Select(
+                        [(lang.value, lang.value) for lang in Language],
+                        id="language-select",
+                        prompt="Language",
+                    )
 
     def on_mount(self) -> None:
         self._pending_cat: str | None = None
