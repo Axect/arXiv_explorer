@@ -209,6 +209,17 @@ impl Default for PrefsState {
 }
 
 // =============================================================================
+// Paper Detail Overlay
+// =============================================================================
+
+pub struct PaperDetailState {
+    pub paper: ScoredPaper,
+    pub summary: Option<String>,
+    pub translation: Option<(String, String)>, // (translated_title, translated_abstract)
+    pub scroll: u16,
+}
+
+// =============================================================================
 // App
 // =============================================================================
 
@@ -222,6 +233,7 @@ pub struct App {
     pub notes: NotesState,
     pub prefs: PrefsState,
     pub toasts: Vec<Toast>,
+    pub detail: Option<PaperDetailState>,
     pub event_tx: mpsc::UnboundedSender<AppEvent>,
     pub event_rx: mpsc::UnboundedReceiver<AppEvent>,
 }
@@ -268,6 +280,7 @@ impl App {
                 section_selected: [0; 4],
             },
             toasts: vec![],
+            detail: None,
             event_tx,
             event_rx,
         })
@@ -291,8 +304,26 @@ impl App {
                 self.search.loading = false;
                 self.push_toast(format!("Found {n} papers"), false);
             }
-            AppEvent::JobCompleted { job_id: _, message } => {
+            AppEvent::JobCompleted { job_id, message } => {
                 self.push_toast(message, false);
+                // Refresh detail overlay cache if it's open and belongs to this job
+                if let Some(detail) = &mut self.detail {
+                    if job_id.contains(&detail.paper.arxiv_id) {
+                        let arxiv_id = detail.paper.arxiv_id.clone();
+                        detail.summary = self
+                            .db
+                            .get_summary(&arxiv_id)
+                            .ok()
+                            .flatten()
+                            .and_then(|s| s.summary_short.or(s.summary_detailed));
+                        detail.translation = self
+                            .db
+                            .get_translation(&arxiv_id)
+                            .ok()
+                            .flatten()
+                            .map(|t| (t.translated_title, t.translated_abstract));
+                    }
+                }
             }
             AppEvent::JobFailed { job_id: _, message } => {
                 self.push_toast(message, true);
@@ -324,7 +355,29 @@ impl App {
         papers.get(self.daily.selected).copied()
     }
 
-    fn push_toast(&mut self, message: impl Into<String>, is_error: bool) {
+    pub fn push_toast(&mut self, message: impl Into<String>, is_error: bool) {
         self.toasts.push(Toast::new(message, is_error));
+    }
+
+    /// Open the paper detail overlay for the given paper, loading cached data.
+    pub fn open_paper_detail(&mut self, paper: ScoredPaper) {
+        let summary = self
+            .db
+            .get_summary(&paper.arxiv_id)
+            .ok()
+            .flatten()
+            .and_then(|s| s.summary_short.or(s.summary_detailed));
+        let translation = self
+            .db
+            .get_translation(&paper.arxiv_id)
+            .ok()
+            .flatten()
+            .map(|t| (t.translated_title, t.translated_abstract));
+        self.detail = Some(PaperDetailState {
+            paper,
+            summary,
+            translation,
+            scroll: 0,
+        });
     }
 }

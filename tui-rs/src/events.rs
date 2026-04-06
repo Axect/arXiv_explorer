@@ -8,6 +8,12 @@ use crate::app::{App, Tab};
 
 /// Returns true if the app should quit.
 pub fn handle_key(app: &mut App, key: KeyCode) -> bool {
+    // Paper detail overlay takes priority over all other handlers
+    if app.detail.is_some() {
+        handle_detail_key(app, key);
+        return false;
+    }
+
     match key {
         // Quit
         KeyCode::Char('q') | KeyCode::Char('Q') => {
@@ -55,6 +61,92 @@ pub fn handle_key(app: &mut App, key: KeyCode) -> bool {
         },
     }
     false
+}
+
+// =============================================================================
+// Paper Detail Overlay
+// =============================================================================
+
+pub fn handle_detail_key(app: &mut App, key: KeyCode) {
+    match key {
+        KeyCode::Esc | KeyCode::Char('q') => {
+            app.detail = None;
+        }
+        KeyCode::Up | KeyCode::Char('k') => {
+            if let Some(detail) = &mut app.detail {
+                detail.scroll = detail.scroll.saturating_sub(1);
+            }
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            if let Some(detail) = &mut app.detail {
+                detail.scroll = detail.scroll.saturating_add(1);
+            }
+        }
+        KeyCode::Char('s') => {
+            if let Some(detail) = &app.detail {
+                let arxiv_id = detail.paper.arxiv_id.clone();
+                let job_id = format!("sum-{}", &arxiv_id);
+                let tx = app.event_tx.clone();
+                app.push_toast("Summarizing...", false);
+                crate::commands::ai::run_summarize(tx, job_id, arxiv_id);
+            }
+        }
+        KeyCode::Char('t') => {
+            if let Some(detail) = &app.detail {
+                let arxiv_id = detail.paper.arxiv_id.clone();
+                let job_id = format!("trans-{}", &arxiv_id);
+                let tx = app.event_tx.clone();
+                app.push_toast("Translating...", false);
+                crate::commands::ai::run_translate(tx, job_id, arxiv_id);
+            }
+        }
+        KeyCode::Char('w') => {
+            if let Some(detail) = &app.detail {
+                let arxiv_id = detail.paper.arxiv_id.clone();
+                let job_id = format!("review-{}", &arxiv_id);
+                let tx = app.event_tx.clone();
+                app.push_toast("Reviewing...", false);
+                crate::commands::ai::run_review(tx, job_id, arxiv_id);
+            }
+        }
+        KeyCode::Char('l') => {
+            if let Some(detail) = &app.detail {
+                let id = detail.paper.arxiv_id.clone();
+                match app.db.mark_interesting(&id) {
+                    Ok(_) => app.push_toast(format!("Liked: {id}"), false),
+                    Err(e) => app.push_toast(format!("Error liking: {e}"), true),
+                }
+            }
+        }
+        KeyCode::Char('d') => {
+            if let Some(detail) = &app.detail {
+                let id = detail.paper.arxiv_id.clone();
+                match app.db.mark_not_interesting(&id) {
+                    Ok(_) => app.push_toast(format!("Disliked: {id}"), false),
+                    Err(e) => app.push_toast(format!("Error disliking: {e}"), true),
+                }
+            }
+        }
+        KeyCode::Char('b') => {
+            if let Some(detail) = &app.detail {
+                let id = detail.paper.arxiv_id.clone();
+                let month = chrono::Local::now().format("%Y%m").to_string();
+                match app.db.toggle_bookmark(&id, &month) {
+                    Ok(added) => {
+                        if added {
+                            app.daily.bookmarked.insert(id.clone());
+                            app.push_toast(format!("Bookmarked: {id}"), false);
+                        } else {
+                            app.daily.bookmarked.remove(&id);
+                            app.push_toast(format!("Bookmark removed: {id}"), false);
+                        }
+                    }
+                    Err(e) => app.push_toast(format!("Error bookmarking: {e}"), true),
+                }
+            }
+        }
+        _ => {}
+    }
 }
 
 // =============================================================================
@@ -183,6 +275,12 @@ pub fn handle_daily_key(app: &mut App, key: KeyCode) {
                 );
             }
         }
+        // Open detail overlay
+        KeyCode::Enter => {
+            if let Some(paper) = app.selected_daily_paper().cloned() {
+                app.open_paper_detail(paper);
+            }
+        }
         _ => {}
     }
 }
@@ -267,6 +365,12 @@ pub fn handle_search_key(app: &mut App, key: KeyCode) {
                 }
             }
         }
+        // Open detail overlay
+        KeyCode::Enter => {
+            if let Some(paper) = app.search.results.get(app.search.selected).cloned() {
+                app.open_paper_detail(paper);
+            }
+        }
         _ => {}
     }
 }
@@ -322,19 +426,31 @@ pub fn handle_lists_key(app: &mut App, key: KeyCode) {
                 // Already loaded on navigation; move focus to papers panel
                 app.lists.focus_left = false;
             } else {
-                // Show toast with paper info
-                if let Some(p) = app.lists.papers.get(app.lists.selected_paper) {
-                    let id = p.arxiv_id.clone();
-                    let title = app
-                        .lists
-                        .paper_details
-                        .get(&id)
-                        .map(|d| d.title.clone())
-                        .unwrap_or_else(|| id.clone());
-                    let _ = app.event_tx.send(crate::app::AppEvent::Toast {
-                        message: format!("Paper: {}", truncate_for_toast(&title, 40)),
-                        is_error: false,
-                    });
+                // Open paper detail overlay
+                if let Some(p) = app.lists.papers.get(app.lists.selected_paper).cloned() {
+                    let detail_opt = app.lists.paper_details.get(&p.arxiv_id).cloned();
+                    let scored = if let Some(d) = detail_opt {
+                        crate::db::models::ScoredPaper {
+                            arxiv_id: d.arxiv_id,
+                            title: d.title,
+                            abstract_text: d.abstract_text,
+                            authors: d.authors,
+                            categories: d.categories,
+                            published: d.published,
+                            score: 0.0,
+                        }
+                    } else {
+                        crate::db::models::ScoredPaper {
+                            arxiv_id: p.arxiv_id.clone(),
+                            title: p.arxiv_id.clone(),
+                            abstract_text: String::new(),
+                            authors: vec![],
+                            categories: vec![],
+                            published: p.added_at.get(..10).unwrap_or(&p.added_at).to_string(),
+                            score: 0.0,
+                        }
+                    };
+                    app.open_paper_detail(scored);
                 }
             }
         }

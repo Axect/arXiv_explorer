@@ -8,7 +8,7 @@ use crossterm::{
 };
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState, Wrap},
+    widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table, TableState, Wrap},
 };
 
 mod app;
@@ -128,6 +128,12 @@ fn render(f: &mut Frame, app: &mut App) {
     render_tab_bar(f, app, chunks[0]);
     render_tab_content(f, app, chunks[1]);
     render_key_hints(f, app, chunks[2]);
+
+    // Paper detail overlay on top of tab content
+    if app.detail.is_some() {
+        render_paper_detail(f, app);
+    }
+
     render_toasts(f, app, area);
 }
 
@@ -1054,6 +1060,149 @@ fn render_prefs(f: &mut Frame, app: &App, area: Rect) {
 }
 
 // =============================================================================
+// Paper Detail Overlay
+// =============================================================================
+
+fn render_paper_detail(f: &mut Frame, app: &App) {
+    let detail = app.detail.as_ref().unwrap();
+    let paper = &detail.paper;
+
+    // Centered overlay: 80% width, 90% height
+    let area = f.area();
+    let w = (area.width * 80 / 100).max(60);
+    let h = (area.height * 90 / 100).max(20);
+    let x = (area.width.saturating_sub(w)) / 2;
+    let y = (area.height.saturating_sub(h)) / 2;
+    let overlay = Rect::new(x, y, w, h);
+
+    // Clear background
+    f.render_widget(Clear, overlay);
+
+    let block = Block::default()
+        .title(" Paper Detail ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(ACCENT))
+        .style(Style::default().bg(BG));
+    let inner = block.inner(overlay);
+    f.render_widget(block, overlay);
+
+    // Split inner into content area + key hints bar
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(1)])
+        .split(inner);
+
+    let content_width = chunks[0].width as usize;
+    let wrap_width = content_width.saturating_sub(2);
+
+    let mut lines: Vec<Line> = Vec::new();
+
+    // Title
+    lines.push(Line::from(vec![
+        Span::styled("Title: ", Style::default().fg(ACCENT).bold()),
+        Span::styled(paper.title.clone(), Style::default().fg(TEXT)),
+    ]));
+
+    // Authors
+    lines.push(Line::from(vec![
+        Span::styled("Authors: ", Style::default().fg(ACCENT).bold()),
+        Span::styled(paper.authors.join(", "), Style::default().fg(TEXT)),
+    ]));
+
+    // Categories + Published
+    lines.push(Line::from(vec![
+        Span::styled("Categories: ", Style::default().fg(ACCENT).bold()),
+        Span::styled(paper.categories.join(", "), Style::default().fg(TEXT)),
+        Span::raw("  │  "),
+        Span::styled("Published: ", Style::default().fg(ACCENT).bold()),
+        Span::styled(paper.published.clone(), Style::default().fg(TEXT)),
+    ]));
+
+    // ID + Score
+    lines.push(Line::from(vec![
+        Span::styled("arXiv: ", Style::default().fg(ACCENT).bold()),
+        Span::styled(paper.arxiv_id.clone(), Style::default().fg(TEXT)),
+        Span::raw("  │  "),
+        Span::styled("Score: ", Style::default().fg(ACCENT).bold()),
+        Span::styled(format!("{:.2}", paper.score), Style::default().fg(TEXT)),
+    ]));
+
+    // Separator
+    lines.push(Line::from(Span::styled(
+        "─".repeat(content_width),
+        Style::default().fg(SURFACE),
+    )));
+    lines.push(Line::default());
+
+    // Abstract
+    lines.push(Line::from(Span::styled(
+        "Abstract:",
+        Style::default().fg(ACCENT).bold(),
+    )));
+    for line in word_wrap(&paper.abstract_text, wrap_width) {
+        lines.push(Line::from(Span::styled(line, Style::default().fg(TEXT))));
+    }
+    lines.push(Line::default());
+
+    // Summary section
+    lines.push(Line::from(Span::styled(
+        "── Summary ──",
+        Style::default().fg(ACCENT).bold(),
+    )));
+    match &detail.summary {
+        Some(s) => {
+            for line in word_wrap(s, wrap_width) {
+                lines.push(Line::from(Span::styled(line, Style::default().fg(TEXT))));
+            }
+        }
+        None => {
+            lines.push(Line::from(Span::styled(
+                "Press [s] to generate summary",
+                Style::default().fg(TEXT_DIM),
+            )));
+        }
+    }
+    lines.push(Line::default());
+
+    // Translation section
+    lines.push(Line::from(Span::styled(
+        "── Translation ──",
+        Style::default().fg(ACCENT).bold(),
+    )));
+    match &detail.translation {
+        Some((title, abstract_text)) => {
+            lines.push(Line::from(vec![
+                Span::styled("Title: ", Style::default().fg(ACCENT)),
+                Span::styled(title.clone(), Style::default().fg(TEXT)),
+            ]));
+            lines.push(Line::default());
+            for line in word_wrap(abstract_text, wrap_width) {
+                lines.push(Line::from(Span::styled(line, Style::default().fg(TEXT))));
+            }
+        }
+        None => {
+            lines.push(Line::from(Span::styled(
+                "Press [t] to translate",
+                Style::default().fg(TEXT_DIM),
+            )));
+        }
+    }
+
+    // Render content with scroll
+    let content = Paragraph::new(lines)
+        .scroll((detail.scroll, 0))
+        .style(Style::default().bg(BG));
+    f.render_widget(content, chunks[0]);
+
+    // Key hints at bottom
+    let hints = Paragraph::new(
+        " [s]ummarize [t]ranslate [w]review [l]ike [d]islike [b]mark [↑↓/jk]scroll [Esc]close",
+    )
+    .style(Style::default().fg(TEXT_DIM).bg(SURFACE));
+    f.render_widget(hints, chunks[1]);
+}
+
+// =============================================================================
 // Stars display helper
 // =============================================================================
 
@@ -1122,4 +1271,33 @@ fn build_bar(value: i64, max: i64, width: usize) -> String {
     };
     let empty = width - filled;
     format!("[{}{}]", "█".repeat(filled), "░".repeat(empty))
+}
+
+fn word_wrap(text: &str, width: usize) -> Vec<String> {
+    if width == 0 {
+        return vec![text.to_string()];
+    }
+    let mut lines = Vec::new();
+    for paragraph in text.split('\n') {
+        if paragraph.is_empty() {
+            lines.push(String::new());
+            continue;
+        }
+        let mut current = String::new();
+        for word in paragraph.split_whitespace() {
+            if current.is_empty() {
+                current = word.to_string();
+            } else if current.len() + 1 + word.len() <= width {
+                current.push(' ');
+                current.push_str(word);
+            } else {
+                lines.push(current);
+                current = word.to_string();
+            }
+        }
+        if !current.is_empty() {
+            lines.push(current);
+        }
+    }
+    lines
 }
