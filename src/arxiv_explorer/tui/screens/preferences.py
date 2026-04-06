@@ -16,6 +16,7 @@ from ...core.models import (
 )
 from ...services.providers import get_provider
 from ...services.settings_service import WEIGHT_KEYS, adjust_weights
+from .category_picker import CategoryPickerScreen
 
 _WEIGHT_LABELS = {
     "content": "Content Similarity",
@@ -142,7 +143,7 @@ class PreferencesPane(Vertical):
                 yield Static("Categories", classes="pref-section-title")
                 yield DataTable(id="cat-table", cursor_type="row", zebra_stripes=True)
                 with Horizontal(classes="pref-input-row"):
-                    yield Input(placeholder="Category (e.g. cs.AI)", id="cat-input")
+                    yield Button("Browse...", id="cat-browse", variant="default")
                     yield Input(
                         placeholder="Priority", id="cat-priority", type="integer", value="1"
                     )
@@ -198,6 +199,8 @@ class PreferencesPane(Vertical):
                 )
 
     def on_mount(self) -> None:
+        self._pending_cat: str | None = None
+
         # Initialize category table
         cat_table = self.query_one("#cat-table", DataTable)
         cat_table.add_column("Category", key="category", width=16)
@@ -244,6 +247,15 @@ class PreferencesPane(Vertical):
 
     # === Categories ===
 
+    @on(Button.Pressed, "#cat-browse")
+    def _on_cat_browse(self) -> None:
+        self.app.push_screen(CategoryPickerScreen(), self._on_category_picked)
+
+    def _on_category_picked(self, code: str | None) -> None:
+        if code:
+            self._pending_cat = code
+            self.app.notify(f"Selected: {code} — press + to add", severity="information")
+
     @on(Button.Pressed, "#cat-add")
     def _on_cat_add(self) -> None:
         self._add_category()
@@ -252,27 +264,23 @@ class PreferencesPane(Vertical):
     def _on_cat_del(self) -> None:
         self._delete_category()
 
-    @on(Input.Submitted, "#cat-input")
-    def _on_cat_submitted(self) -> None:
-        self._add_category()
-
     def _add_category(self) -> None:
-        cat = self.query_one("#cat-input", Input).value.strip()
+        cat = self._pending_cat
         if not cat:
-            self.app.notify("Please enter a category", severity="warning")
+            self.app.notify("Browse and select a category first", severity="warning")
             return
         pri_str = self.query_one("#cat-priority", Input).value.strip()
         try:
             priority = int(pri_str) if pri_str else 1
         except ValueError:
             priority = 1
+        self._pending_cat = None
         self._do_add_category(cat, priority)
 
     @work(thread=True, group="pref-cat-add")
     def _do_add_category(self, category: str, priority: int) -> None:
         self.app.bridge.preferences.add_category(category, priority)
         self.app.call_from_thread(self.app.notify, f"Added: {category}")
-        self.app.call_from_thread(self.query_one("#cat-input", Input).clear)
         self._load_categories()
 
     def _delete_category(self) -> None:
