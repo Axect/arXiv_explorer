@@ -166,7 +166,7 @@ def init_db(db_path: Path | None = None) -> None:
 
 @contextmanager
 def get_connection(db_path: Path | None = None) -> Iterator[sqlite3.Connection]:
-    """Database connection context manager."""
+    """Database connection context manager. Auto-commits on clean exit."""
     if db_path is None:
         db_path = get_config().db_path
 
@@ -174,6 +174,10 @@ def get_connection(db_path: Path | None = None) -> Iterator[sqlite3.Connection]:
     conn.row_factory = sqlite3.Row
     try:
         yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
