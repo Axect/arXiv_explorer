@@ -1,5 +1,6 @@
 """arXiv API client."""
 
+import hashlib
 import json
 import sqlite3
 import time
@@ -59,19 +60,25 @@ class ArxivClient:
         days: int = 1,
         max_results: int = 200,
     ) -> list[Paper]:
-        """Fetch recent papers by category."""
-        # Calculate date range
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
+        """Fetch recent papers by category with smart caching."""
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        cat_hash = self._categories_hash(categories)
 
-        # Build category query
-        cat_query = " OR ".join(f"cat:{cat}" for cat in categories)
+        # Check cache
+        cached = self._get_fetch_cache(today_str, days, cat_hash)
+        if cached is not None:
+            return cached
 
-        # Date filtering is not natively supported by the API; post-filter
-        papers = self.search(cat_query, max_results=max_results)
+        # Cache miss — query arXiv with date range
+        self._cleanup_stale_cache()
+        query = self._build_date_range_query(categories, days)
+        papers = self.search(query, max_results=max_results)
 
-        # Filter by date
-        return [p for p in papers if p.published >= start_date]
+        # Save cache entry
+        paper_ids = [p.arxiv_id for p in papers]
+        self._save_fetch_cache(today_str, days, cat_hash, paper_ids)
+
+        return papers
 
     def get_paper(self, arxiv_id: str) -> Paper | None:
         """Get a specific paper (cache-first)."""
@@ -144,6 +151,56 @@ class ArxivClient:
                     )
                     for p in papers
                 ],
+            )
+            conn.commit()
+
+    @staticmethod
+    def _categories_hash(categories: list[str]) -> str:
+        """Deterministic hash of sorted category names."""
+        key = ",".join(sorted(categories))
+        return hashlib.sha256(key.encode()).hexdigest()[:16]
+
+    @staticmethod
+    def _build_date_range_query(categories: list[str], days: int) -> str:
+        """Build arXiv API query with date range."""
+        cat_query = " OR ".join(f"cat:{cat}" for cat in categories)
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        start_str = start_date.strftime("%Y%m%d") + "0000"
+        end_str = end_date.strftime("%Y%m%d") + "2359"
+        return f"({cat_query}) AND submittedDate:[{start_str} TO {end_str}]"
+
+    def _get_fetch_cache(self, fetch_date: str, days: int, cat_hash: str) -> list[Paper] | None:
+        """Look up cached fetch result. Returns papers or None."""
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT paper_ids FROM daily_fetch_cache "
+                "WHERE fetch_date = ? AND days = ? AND categories_hash = ?",
+                (fetch_date, days, cat_hash),
+            ).fetchone()
+        if row is None:
+            return None
+        paper_ids = json.loads(row["paper_ids"])
+        if not paper_ids:
+            return []
+        return list(self._get_cached_batch(paper_ids).values())
+
+    def _save_fetch_cache(self, fetch_date: str, days: int, cat_hash: str, paper_ids: list[str]) -> None:
+        """Save a fetch cache entry."""
+        with get_connection() as conn:
+            conn.execute(
+                """INSERT OR REPLACE INTO daily_fetch_cache
+                   (fetch_date, days, categories_hash, paper_ids)
+                   VALUES (?, ?, ?, ?)""",
+                (fetch_date, days, cat_hash, json.dumps(paper_ids)),
+            )
+            conn.commit()
+
+    def _cleanup_stale_cache(self) -> None:
+        """Remove cache entries older than 7 days."""
+        with get_connection() as conn:
+            conn.execute(
+                "DELETE FROM daily_fetch_cache WHERE fetch_date < date('now', '-7 days')"
             )
             conn.commit()
 
