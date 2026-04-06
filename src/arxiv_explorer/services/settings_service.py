@@ -9,7 +9,35 @@ DEFAULTS: dict[str, str] = {
     "ai_timeout": "120",
     "custom_command": "",
     "language": Language.EN.value,
+    "weight_content": "60",
+    "weight_category": "20",
+    "weight_keyword": "15",
+    "weight_recency": "5",
 }
+
+WEIGHT_KEYS = ["content", "category", "keyword", "recency"]
+DEFAULT_WEIGHTS = {"content": 60, "category": 20, "keyword": 15, "recency": 5}
+
+
+def adjust_weights(changed_key: str, new_value: int, weights: dict[str, int]) -> dict[str, int]:
+    """Adjust all weights proportionally so they always sum to 100."""
+    result = dict(weights)
+    result[changed_key] = new_value
+    remaining = 100 - new_value
+    others = {k: v for k, v in result.items() if k != changed_key}
+    others_sum = sum(others.values())
+    if others_sum == 0:
+        equal = remaining // len(others)
+        for k in others:
+            result[k] = equal
+    else:
+        for k in others:
+            result[k] = round(remaining * others[k] / others_sum)
+    diff = 100 - sum(result.values())
+    if diff != 0:
+        largest = max(others, key=lambda k: result[k])
+        result[largest] += diff
+    return result
 
 
 class SettingsService:
@@ -63,3 +91,16 @@ class SettingsService:
             return Language(self.get("language"))
         except ValueError:
             return Language.EN
+
+    def get_weights(self) -> dict[str, int]:
+        """Get current recommendation weights."""
+        return {key: int(self.get(f"weight_{key}")) for key in WEIGHT_KEYS}
+
+    def set_weights(self, weights: dict[str, int]) -> None:
+        """Save recommendation weights."""
+        for key in WEIGHT_KEYS:
+            self.set(f"weight_{key}", str(weights[key]))
+
+    def reset_weights(self) -> None:
+        """Reset recommendation weights to defaults."""
+        self.set_weights(DEFAULT_WEIGHTS)
