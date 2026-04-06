@@ -8,6 +8,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.widgets import Footer, Header, TabbedContent, TabPane
 
+from ..core.models import Job, JobStatus
 from .screens.daily import DailyPane
 from .screens.notes import NotesPane
 from .screens.preferences import PreferencesPane
@@ -32,6 +33,7 @@ class ArxivExplorerApp(App):
         Binding("3", "tab('lists')", "Lists", show=False),
         Binding("4", "tab('notes')", "Notes", show=False),
         Binding("5", "tab('prefs')", "Prefs", show=False),
+        Binding("j", "toggle_jobs", "Jobs"),
         Binding("q", "quit", "Quit"),
         Binding("question_mark", "help_keys", "Shortcuts", show=False),
     ]
@@ -39,6 +41,7 @@ class ArxivExplorerApp(App):
     def __init__(self) -> None:
         super().__init__()
         self.bridge = ServiceBridge()
+        self.bridge.job_manager._on_status_change = self._on_job_status_change
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -63,10 +66,32 @@ class ArxivExplorerApp(App):
         self.notify(
             "1-5: Switch tabs | r: Refresh | l: Like | d: Dislike | "
             "s: Summary | t: Translate | Enter: Detail | /: Search | "
-            "c: New list | n: Note | Delete: Delete | q: Quit",
+            "c: New list | n: Note | Delete: Delete | j: Jobs | q: Quit",
             title="Shortcuts",
             timeout=8,
         )
+
+    def _on_job_status_change(self, job: Job) -> None:
+        if job.status == JobStatus.COMPLETED:
+            self.notify(
+                f"\u2713 {job.job_type.value.title()} completed\n  {job.paper_id}",
+                timeout=3,
+            )
+        elif job.status == JobStatus.FAILED and job.error != "cancelled":
+            self.notify(
+                f"\u2717 {job.job_type.value.title()} failed\n  {job.error}",
+                severity="error",
+                timeout=5,
+            )
+        active = len(self.bridge.job_manager.get_active_jobs())
+        self.sub_title = (
+            f"Jobs: {active} running" if active > 0 else "Personalized Paper Recommendation System"
+        )
+
+    def action_toggle_jobs(self) -> None:
+        from .screens.jobs_panel import JobsPanel
+
+        self.push_screen(JobsPanel())
 
 
 def launch_tui() -> None:

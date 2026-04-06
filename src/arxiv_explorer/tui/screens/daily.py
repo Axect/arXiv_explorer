@@ -257,57 +257,71 @@ class DailyPane(Vertical):
         rec = self._get_current()
         if not rec:
             return
+        from ...core.models import JobType
+
+        mgr = self.app.bridge.job_manager
+        job = mgr.submit(JobType.SUMMARIZE, rec.paper.arxiv_id, rec.paper.title)
         self._set_status(f"Summarizing {rec.paper.arxiv_id}...")
-        self._do_summarize(rec)
-
-    @work(thread=True, group="summarize")
-    def _do_summarize(self, rec: RecommendedPaper) -> None:
-        p = rec.paper
-        summary = self.app.bridge.summarization.summarize(
-            arxiv_id=p.arxiv_id,
-            title=p.title,
-            abstract=p.abstract,
-            detailed=True,
-        )
-        if summary:
-            self.app.call_from_thread(self._show_summary, rec, summary)
-        else:
-            self.app.call_from_thread(self._set_status, "Summary generation failed")
-            self.app.call_from_thread(
-                self.app.notify,
-                "Could not generate summary (check Gemini CLI)",
-                severity="warning",
-            )
-
-    def _show_summary(self, rec, summary) -> None:
-        panel = self.query_one("#daily-panel", PaperPanel)
-        panel.show_summary(summary)
-        self._set_status(f"Summary done: {rec.paper.arxiv_id}")
+        self._run_job(job, rec)
 
     def action_translate(self) -> None:
         rec = self._get_current()
         if not rec:
             return
-        self._set_status(f"Translating {rec.paper.arxiv_id}...")
-        self._do_translate(rec)
+        from ...core.models import JobType
 
-    @work(thread=True, group="translate")
-    def _do_translate(self, rec: RecommendedPaper) -> None:
-        p = rec.paper
-        translation = self.app.bridge.translation.translate(
-            arxiv_id=p.arxiv_id,
-            title=p.title,
-            abstract=p.abstract,
-        )
-        if translation:
-            self.app.call_from_thread(self._show_translation, rec, translation)
-        else:
-            self.app.call_from_thread(self._set_status, "Translation failed")
-            self.app.call_from_thread(
-                self.app.notify,
-                "Could not generate translation",
-                severity="warning",
-            )
+        mgr = self.app.bridge.job_manager
+        job = mgr.submit(JobType.TRANSLATE, rec.paper.arxiv_id, rec.paper.title)
+        self._set_status(f"Translating {rec.paper.arxiv_id}...")
+        self._run_job(job, rec)
+
+    @work(thread=True, group="job-run")
+    def _run_job(self, job, rec) -> None:
+        from ...core.models import JobType
+
+        mgr = self.app.bridge.job_manager
+        mgr.mark_running(job.id)
+        try:
+            p = rec.paper
+            if job.job_type == JobType.SUMMARIZE:
+                summary = self.app.bridge.summarization.summarize(
+                    arxiv_id=p.arxiv_id,
+                    title=p.title,
+                    abstract=p.abstract,
+                    detailed=True,
+                )
+                if summary:
+                    self.app.call_from_thread(self._show_summary, rec, summary)
+                else:
+                    self.app.call_from_thread(self._set_status, "Summary generation failed")
+                    self.app.call_from_thread(
+                        self.app.notify,
+                        "Could not generate summary (check Gemini CLI)",
+                        severity="warning",
+                    )
+            elif job.job_type == JobType.TRANSLATE:
+                translation = self.app.bridge.translation.translate(
+                    arxiv_id=p.arxiv_id,
+                    title=p.title,
+                    abstract=p.abstract,
+                )
+                if translation:
+                    self.app.call_from_thread(self._show_translation, rec, translation)
+                else:
+                    self.app.call_from_thread(self._set_status, "Translation failed")
+                    self.app.call_from_thread(
+                        self.app.notify,
+                        "Could not generate translation",
+                        severity="warning",
+                    )
+            mgr.mark_completed(job.id)
+        except Exception as e:
+            mgr.mark_failed(job.id, str(e))
+
+    def _show_summary(self, rec, summary) -> None:
+        panel = self.query_one("#daily-panel", PaperPanel)
+        panel.show_summary(summary)
+        self._set_status(f"Summary done: {rec.paper.arxiv_id}")
 
     def _show_translation(self, rec, translation) -> None:
         panel = self.query_one("#daily-panel", PaperPanel)

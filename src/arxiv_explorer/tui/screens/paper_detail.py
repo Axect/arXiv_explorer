@@ -144,22 +144,12 @@ class PaperDetailScreen(ModalScreen):
         self.app.call_from_thread(self.app.notify, f"Disliked {self.rec.paper.arxiv_id}")
 
     def action_summarize(self) -> None:
-        self.app.notify("Generating summary...")
-        self._do_summarize()
+        from ...core.models import JobType
 
-    @work(thread=True, exclusive=True, group="detail-summarize")
-    def _do_summarize(self) -> None:
-        p = self.rec.paper
-        summary = self.app.bridge.summarization.summarize(
-            arxiv_id=p.arxiv_id, title=p.title, abstract=p.abstract, detailed=True
-        )
-        if summary:
-            self.app.call_from_thread(self._render_summary, summary)
-            self.app.call_from_thread(self.app.notify, "Summary complete")
-        else:
-            self.app.call_from_thread(
-                self.app.notify, "Summary generation failed", severity="warning"
-            )
+        mgr = self.app.bridge.job_manager
+        job = mgr.submit(JobType.SUMMARIZE, self.rec.paper.arxiv_id, self.rec.paper.title)
+        self.app.notify("Generating summary...")
+        self._run_job(job)
 
     def action_add_note(self) -> None:
         from .note_input import NoteInputScreen
@@ -167,20 +157,44 @@ class PaperDetailScreen(ModalScreen):
         self.app.push_screen(NoteInputScreen(self.rec.paper.arxiv_id))
 
     def action_translate(self) -> None:
-        self.app.notify("Translating...")
-        self._do_translate()
+        from ...core.models import JobType
 
-    @work(thread=True, exclusive=True, group="detail-translate")
-    def _do_translate(self) -> None:
-        p = self.rec.paper
-        translation = self.app.bridge.translation.translate(
-            arxiv_id=p.arxiv_id, title=p.title, abstract=p.abstract
-        )
-        if translation:
-            self.app.call_from_thread(self._render_translation, translation)
-            self.app.call_from_thread(self.app.notify, "Translation complete")
-        else:
-            self.app.call_from_thread(self.app.notify, "Translation failed", severity="warning")
+        mgr = self.app.bridge.job_manager
+        job = mgr.submit(JobType.TRANSLATE, self.rec.paper.arxiv_id, self.rec.paper.title)
+        self.app.notify("Translating...")
+        self._run_job(job)
+
+    @work(thread=True, group="detail-job-run")
+    def _run_job(self, job) -> None:
+        from ...core.models import JobType
+
+        mgr = self.app.bridge.job_manager
+        mgr.mark_running(job.id)
+        try:
+            p = self.rec.paper
+            if job.job_type == JobType.SUMMARIZE:
+                summary = self.app.bridge.summarization.summarize(
+                    arxiv_id=p.arxiv_id, title=p.title, abstract=p.abstract, detailed=True
+                )
+                if summary:
+                    self.app.call_from_thread(self._render_summary, summary)
+                else:
+                    self.app.call_from_thread(
+                        self.app.notify, "Summary generation failed", severity="warning"
+                    )
+            elif job.job_type == JobType.TRANSLATE:
+                translation = self.app.bridge.translation.translate(
+                    arxiv_id=p.arxiv_id, title=p.title, abstract=p.abstract
+                )
+                if translation:
+                    self.app.call_from_thread(self._render_translation, translation)
+                else:
+                    self.app.call_from_thread(
+                        self.app.notify, "Translation failed", severity="warning"
+                    )
+            mgr.mark_completed(job.id)
+        except Exception as e:
+            mgr.mark_failed(job.id, str(e))
 
     def _render_translation(self, translation: PaperTranslation) -> None:
         lines = [
