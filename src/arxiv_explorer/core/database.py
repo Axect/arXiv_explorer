@@ -75,6 +75,13 @@ CREATE TABLE IF NOT EXISTS keyword_interests (
     source TEXT DEFAULT 'explicit'
 );
 
+-- Preferred Authors
+CREATE TABLE IF NOT EXISTS preferred_authors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Paper Translations
 CREATE TABLE IF NOT EXISTS paper_translations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

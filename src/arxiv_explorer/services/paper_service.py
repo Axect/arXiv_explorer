@@ -2,6 +2,7 @@
 
 from ..core.models import Paper, RecommendedPaper
 from .arxiv_client import ArxivClient
+from .author_service import AuthorService
 from .preference_service import PreferenceService
 from .recommendation import get_recommendation_engine
 
@@ -12,17 +13,18 @@ class PaperService:
     def __init__(self):
         self.arxiv_client = ArxivClient()
         self.preference_service = PreferenceService()
+        self.author_service = AuthorService()
 
     def get_daily_papers(
         self,
         days: int = 1,
         limit: int = 50,
-    ) -> list[RecommendedPaper]:
-        """Get daily papers with personalized scores."""
+    ) -> tuple[list[RecommendedPaper], list[RecommendedPaper]]:
+        """Get daily papers. Returns (author_matched, scored)."""
         # Get preferred categories
         categories = self.preference_service.get_categories()
         if not categories:
-            return []
+            return [], []
 
         category_names = [c.category for c in categories]
 
@@ -62,7 +64,9 @@ class PaperService:
             keywords=keywords,
         )
 
-        return recommended[:limit]
+        # Split by author match
+        author_papers, remaining = self.author_service.filter_author_papers(recommended)
+        return author_papers, remaining[:limit]
 
     def search_papers(
         self,

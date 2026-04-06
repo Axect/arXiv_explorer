@@ -1,0 +1,4 @@
+{"type":"server-started","port":65147,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:65147","screen_dir":"/home/axect/Documents/Project/AI_Project/arXiv_explorer/.superpowers/brainstorm/1708292-1775462805/content","state_dir":"/home/axect/Documents/Project/AI_Project/arXiv_explorer/.superpowers/brainstorm/1708292-1775462805/state"}
+{"type":"screen-added","file":"/home/axect/Documents/Project/AI_Project/arXiv_explorer/.superpowers/brainstorm/1708292-1775462805/content/highlight-styles.html"}
+{"type":"screen-added","file":"/home/axect/Documents/Project/AI_Project/arXiv_explorer/.superpowers/brainstorm/1708292-1775462805/content/waiting.html"}
+{"type":"server-stopped","reason":"idle timeout"}

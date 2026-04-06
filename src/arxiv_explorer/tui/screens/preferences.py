@@ -7,7 +7,13 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, DataTable, Input, Select, Static
 
-from ...core.models import AIProviderType, KeywordInterest, Language, PreferredCategory
+from ...core.models import (
+    AIProviderType,
+    KeywordInterest,
+    Language,
+    PreferredAuthor,
+    PreferredCategory,
+)
 from ...services.providers import get_provider
 
 
@@ -119,6 +125,15 @@ class PreferencesPane(Vertical):
                     yield Button("+", id="kw-add", variant="primary")
                     yield Button("Del", id="kw-del", variant="error")
 
+            # Authors section
+            with Vertical(classes="pref-section"):
+                yield Static("Authors", classes="pref-section-title")
+                yield DataTable(id="author-table", cursor_type="row", zebra_stripes=True)
+                with Horizontal(classes="pref-input-row"):
+                    yield Input(placeholder="Author name", id="author-input")
+                    yield Button("+", id="author-add", variant="primary")
+                    yield Button("Del", id="author-del", variant="error")
+
         # AI Config section
         with Vertical(id="ai-config-section"):
             yield Static("Configuration", id="ai-config-title")
@@ -150,6 +165,11 @@ class PreferencesPane(Vertical):
         kw_table.add_column("Weight", key="weight", width=10)
         kw_table.add_column("Source", key="source", width=10)
 
+        # Initialize author table
+        author_table = self.query_one("#author-table", DataTable)
+        author_table.add_column("Author", key="author", width=24)
+        author_table.add_column("Added", key="added", width=12)
+
         self._load_all()
         self._load_ai_provider()
 
@@ -161,10 +181,13 @@ class PreferencesPane(Vertical):
         # Delete based on focused table
         cat_table = self.query_one("#cat-table", DataTable)
         kw_table = self.query_one("#kw-table", DataTable)
+        author_table = self.query_one("#author-table", DataTable)
         if cat_table.has_focus:
             self._delete_category()
         elif kw_table.has_focus:
             self._delete_keyword()
+        elif author_table.has_focus:
+            self._delete_author()
 
     # === Categories ===
 
@@ -266,6 +289,51 @@ class PreferencesPane(Vertical):
         self.app.call_from_thread(self.app.notify, f"Deleted: {keyword}")
         self._load_keywords()
 
+    # === Authors ===
+
+    @on(Button.Pressed, "#author-add")
+    def _on_author_add(self) -> None:
+        self._add_author()
+
+    @on(Button.Pressed, "#author-del")
+    def _on_author_del(self) -> None:
+        self._delete_author()
+
+    @on(Input.Submitted, "#author-input")
+    def _on_author_submitted(self) -> None:
+        self._add_author()
+
+    def _add_author(self) -> None:
+        name = self.query_one("#author-input", Input).value.strip()
+        if not name:
+            self.app.notify("Please enter an author name", severity="warning")
+            return
+        self._do_add_author(name)
+
+    @work(thread=True, group="pref-author-add")
+    def _do_add_author(self, name: str) -> None:
+        self.app.bridge.authors.add_author(name)
+        self.app.call_from_thread(self.app.notify, f"Added: {name}")
+        self.app.call_from_thread(self.query_one("#author-input", Input).clear)
+        self._load_authors()
+
+    def _delete_author(self) -> None:
+        table = self.query_one("#author-table", DataTable)
+        if table.cursor_row is None:
+            return
+        try:
+            row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        except Exception:
+            return
+        name = row_key.value if hasattr(row_key, "value") else str(row_key)
+        self._do_delete_author(name)
+
+    @work(thread=True, group="pref-author-del")
+    def _do_delete_author(self, name: str) -> None:
+        self.app.bridge.authors.remove_author(name)
+        self.app.call_from_thread(self.app.notify, f"Deleted: {name}")
+        self._load_authors()
+
     # === AI Provider ===
 
     @on(Select.Changed, "#ai-provider-select")
@@ -329,6 +397,7 @@ class PreferencesPane(Vertical):
     def _load_all(self) -> None:
         self._load_categories()
         self._load_keywords()
+        self._load_authors()
 
     @work(thread=True, exclusive=True, group="pref-load-cat")
     def _load_categories(self) -> None:
@@ -352,3 +421,15 @@ class PreferencesPane(Vertical):
         table.clear()
         for k in keywords:
             table.add_row(k.keyword, f"{k.weight:.1f}", k.source, key=k.keyword)
+
+    @work(thread=True, exclusive=True, group="pref-load-author")
+    def _load_authors(self) -> None:
+        authors = self.app.bridge.authors.get_authors()
+        self.app.call_from_thread(self._populate_authors, authors)
+
+    def _populate_authors(self, authors: list[PreferredAuthor]) -> None:
+        table = self.query_one("#author-table", DataTable)
+        table.clear()
+        for a in authors:
+            added = a.added_at.strftime("%Y-%m-%d")
+            table.add_row(a.name, added, key=a.name)

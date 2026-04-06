@@ -162,6 +162,15 @@ class KeywordInterest:
 
 
 @dataclass
+class PreferredAuthor:
+    """Preferred author."""
+
+    id: int
+    name: str
+    added_at: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
 class ReviewSection:
     """One section of a paper review, cached individually."""
 

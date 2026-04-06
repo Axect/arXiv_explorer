@@ -163,10 +163,13 @@ class DailyPane(Vertical):
 
         bridge = self.app.bridge
         try:
-            papers = bridge.papers.get_daily_papers(days=days, limit=limit)
+            author_papers, scored_papers = bridge.papers.get_daily_papers(days=days, limit=limit)
         except Exception as e:
             self.app.call_from_thread(self._show_error, str(e))
             return
+
+        all_papers = author_papers + scored_papers
+        author_ids = {rec.paper.arxiv_id for rec in author_papers}
 
         # Load current month bookmarks to show visual indicator
         month_name = date.today().strftime("%Y%m")
@@ -181,13 +184,20 @@ class DailyPane(Vertical):
         except Exception:
             pass
 
-        self.app.call_from_thread(self._update_papers, papers, bookmarked)
+        self.app.call_from_thread(
+            self._update_papers, all_papers, author_ids, bookmarked
+        )
 
     def _update_papers(
-        self, papers: list[RecommendedPaper], bookmarked: set[str] | None = None
+        self,
+        papers: list[RecommendedPaper],
+        author_ids: set[str] | None = None,
+        bookmarked: set[str] | None = None,
     ) -> None:
         table = self.query_one("#daily-table", PaperTable)
         table.set_papers(papers)
+        if author_ids:
+            table.set_author_matched(author_ids)
         if bookmarked:
             table.set_bookmarked(bookmarked)
         if not papers:

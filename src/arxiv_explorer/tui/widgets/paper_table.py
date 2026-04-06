@@ -55,6 +55,7 @@ class PaperTable(Vertical):
         super().__init__(**kwargs)
         self._papers: list[RecommendedPaper] = []
         self._bookmarked: set[str] = set()
+        self._author_matched: set[str] = set()
 
     def compose(self) -> ComposeResult:
         yield LoadingIndicator(id="pt-loading")
@@ -120,12 +121,22 @@ class PaperTable(Vertical):
         self._refresh_row_labels()
         return result
 
+    def set_author_matched(self, arxiv_ids: set[str]) -> None:
+        """Mark papers by preferred authors with a star label."""
+        self._author_matched = arxiv_ids
+        self._refresh_row_labels()
+
     def _refresh_row_labels(self) -> None:
-        """Update the # column to show a bookmark indicator (✓) when bookmarked."""
+        """Update the # column with ★ (author) and ✓ (bookmarked) indicators."""
         table = self.query_one("#pt-table", DataTable)
         for i, rec in enumerate(self._papers):
             arxiv_id = rec.paper.arxiv_id
-            label = f"✓{i + 1}" if arxiv_id in self._bookmarked else str(i + 1)
+            prefix = ""
+            if arxiv_id in self._author_matched:
+                prefix += "★"
+            if arxiv_id in self._bookmarked:
+                prefix += "✓"
+            label = f"{prefix}{i + 1}" if prefix else str(i + 1)
             try:
                 table.update_cell(arxiv_id, "idx", label)
             except Exception:

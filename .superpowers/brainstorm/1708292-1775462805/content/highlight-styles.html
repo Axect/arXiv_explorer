@@ -1,0 +1,106 @@
+<h2>Paper Highlight Styles in Daily View</h2>
+<p class="subtitle">How should different paper states be visually distinguished?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Left Border Color Coding</h3>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Daily Papers - Border Style</div>
+        <div class="mockup-body" style="font-family:monospace;font-size:13px;background:#1e1e2e;color:#cdd6f4;padding:16px;line-height:1.6">
+          <div style="border-left:3px solid #585b70;padding:6px 12px;margin-bottom:8px">
+            <span style="color:#89b4fa">2506.01234</span> <span style="color:#cdd6f4">Normal paper title here...</span><br>
+            <span style="color:#6c7086">cs.AI | 2026-04-05 | Score: 0.82</span>
+          </div>
+          <div style="border-left:3px solid #f9e2af;padding:6px 12px;margin-bottom:8px;background:rgba(249,226,175,0.05)">
+            <span style="color:#89b4fa">2506.01235</span> <span style="color:#f9e2af">Paper by preferred author ★</span><br>
+            <span style="color:#f9e2af">cs.ML | 2026-04-05 | Author: J. Smith</span>
+          </div>
+          <div style="border-left:3px solid #a6e3a1;padding:6px 12px;margin-bottom:8px;background:rgba(166,227,161,0.05)">
+            <span style="color:#89b4fa">2506.01236</span> <span style="color:#a6e3a1">Saved to 20260406 ✓</span><br>
+            <span style="color:#6c7086">hep-ph | 2026-04-04 | Score: 0.75</span>
+          </div>
+          <div style="border-left:3px solid #f9e2af;padding:6px 12px;margin-bottom:8px;background:rgba(249,226,175,0.05)">
+            <span style="color:#89b4fa">2506.01237</span> <span style="color:#f9e2af;text-decoration:underline #a6e3a1">Preferred author + Saved ★✓</span><br>
+            <span style="color:#f9e2af">quant-ph | 2026-04-05 | Author: K. Lee</span>
+            <span style="display:inline-block;margin-left:8px;color:#a6e3a1;font-size:11px">📁 20260406</span>
+          </div>
+        </div>
+      </div>
+      <p style="margin-top:8px"><strong>Yellow</strong> = preferred author, <strong>Green</strong> = saved to date folder, <strong>Both</strong> = yellow border + green icon/tag</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Background Tint + Icons</h3>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Daily Papers - Background Style</div>
+        <div class="mockup-body" style="font-family:monospace;font-size:13px;background:#1e1e2e;color:#cdd6f4;padding:16px;line-height:1.6">
+          <div style="padding:6px 12px;margin-bottom:8px">
+            <span style="color:#89b4fa">2506.01234</span> <span style="color:#cdd6f4">Normal paper title here...</span><br>
+            <span style="color:#6c7086">cs.AI | 2026-04-05 | Score: 0.82</span>
+          </div>
+          <div style="padding:6px 12px;margin-bottom:8px;background:rgba(250,179,135,0.12);border-radius:4px">
+            <span style="color:#fab387">★</span> <span style="color:#89b4fa">2506.01235</span> <span style="color:#cdd6f4">Paper by preferred author</span><br>
+            <span style="color:#fab387">cs.ML | 2026-04-05 | Author: J. Smith</span>
+          </div>
+          <div style="padding:6px 12px;margin-bottom:8px;background:rgba(166,227,161,0.12);border-radius:4px">
+            <span style="color:#a6e3a1">✓</span> <span style="color:#89b4fa">2506.01236</span> <span style="color:#cdd6f4">Saved to 20260406</span><br>
+            <span style="color:#6c7086">hep-ph | 2026-04-04 | Score: 0.75</span>
+          </div>
+          <div style="padding:6px 12px;margin-bottom:8px;background:linear-gradient(135deg,rgba(250,179,135,0.12),rgba(166,227,161,0.12));border-radius:4px">
+            <span style="color:#fab387">★</span><span style="color:#a6e3a1">✓</span> <span style="color:#89b4fa">2506.01237</span> <span style="color:#cdd6f4">Preferred + Saved</span><br>
+            <span style="color:#fab387">quant-ph | 2026-04-05 | Author: K. Lee</span>
+          </div>
+        </div>
+      </div>
+      <p style="margin-top:8px"><strong>Orange tint</strong> = preferred author (★), <strong>Green tint</strong> = saved (✓), <strong>Gradient</strong> = both (★✓)</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Tag Badges (Right-aligned)</h3>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Daily Papers - Tag Style</div>
+        <div class="mockup-body" style="font-family:monospace;font-size:13px;background:#1e1e2e;color:#cdd6f4;padding:16px;line-height:1.6">
+          <div style="padding:6px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <span style="color:#89b4fa">2506.01234</span> <span>Normal paper title here...</span><br>
+              <span style="color:#6c7086">cs.AI | 2026-04-05 | Score: 0.82</span>
+            </div>
+          </div>
+          <div style="padding:6px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <span style="color:#89b4fa">2506.01235</span> <span>Paper by preferred author</span><br>
+              <span style="color:#6c7086">cs.ML | 2026-04-05 | Author: J. Smith</span>
+            </div>
+            <span style="background:#fab387;color:#1e1e2e;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;white-space:nowrap">★ AUTHOR</span>
+          </div>
+          <div style="padding:6px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <span style="color:#89b4fa">2506.01236</span> <span>Saved to date folder</span><br>
+              <span style="color:#6c7086">hep-ph | 2026-04-04 | Score: 0.75</span>
+            </div>
+            <span style="background:#a6e3a1;color:#1e1e2e;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;white-space:nowrap">✓ SAVED</span>
+          </div>
+          <div style="padding:6px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <span style="color:#89b4fa">2506.01237</span> <span>Preferred + Saved</span><br>
+              <span style="color:#6c7086">quant-ph | 2026-04-05 | Author: K. Lee</span>
+            </div>
+            <div>
+              <span style="background:#fab387;color:#1e1e2e;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;white-space:nowrap">★ AUTHOR</span>
+              <span style="background:#a6e3a1;color:#1e1e2e;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;white-space:nowrap;margin-left:4px">✓ SAVED</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="margin-top:8px">Clean badges that stack when multiple states apply. No background color changes.</p>
+    </div>
+  </div>
+</div>

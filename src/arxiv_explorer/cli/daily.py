@@ -46,7 +46,8 @@ def daily(
         console=console,
     ) as progress:
         task = progress.add_task("Fetching papers...", total=None)
-        papers = service.get_daily_papers(days=days, limit=limit)
+        author_papers, scored_papers = service.get_daily_papers(days=days, limit=limit)
+        papers = author_papers + scored_papers
 
     if not papers:
         print_info("No new papers found.")
@@ -98,7 +99,8 @@ def top(
         console=console,
     ) as progress:
         task = progress.add_task("Fetching top papers...", total=None)
-        papers = service.get_daily_papers(days=7, limit=limit)
+        author_papers, scored_papers = service.get_daily_papers(days=7, limit=limit)
+        papers = author_papers + scored_papers
 
     if not papers:
         print_info("No papers to recommend.")
