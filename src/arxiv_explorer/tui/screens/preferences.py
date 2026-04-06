@@ -15,6 +15,14 @@ from ...core.models import (
     PreferredCategory,
 )
 from ...services.providers import get_provider
+from ...services.settings_service import WEIGHT_KEYS, adjust_weights
+
+_WEIGHT_LABELS = {
+    "content": "Content Similarity",
+    "category": "Category Match",
+    "keyword": "Keyword Match",
+    "recency": "Recency Bonus",
+}
 
 
 class PreferencesPane(Vertical):
@@ -60,6 +68,30 @@ class PreferencesPane(Vertical):
         min-width: 8;
         margin-right: 1;
     }
+    PreferencesPane #weights-section {
+        height: auto;
+        max-height: 10;
+        dock: bottom;
+        padding: 0 1;
+        margin-bottom: 1;
+    }
+    PreferencesPane #weights-title {
+        text-style: bold;
+        color: $accent;
+        height: 1;
+    }
+    PreferencesPane #weights-table {
+        height: 6;
+    }
+    PreferencesPane #weights-footer {
+        height: 1;
+        color: $text-muted;
+        text-align: right;
+    }
+    PreferencesPane #weights-controls {
+        height: 3;
+        dock: bottom;
+    }
     PreferencesPane #ai-config-section {
         height: auto;
         max-height: 8;
@@ -99,6 +131,8 @@ class PreferencesPane(Vertical):
     BINDINGS = [
         ("r", "refresh", "Refresh"),
         ("delete", "delete_selected", "Delete"),
+        ("left", "weight_decrease", "Weight -1"),
+        ("right", "weight_increase", "Weight +1"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -133,6 +167,17 @@ class PreferencesPane(Vertical):
                     yield Input(placeholder="Author name", id="author-input")
                     yield Button("+", id="author-add", variant="primary")
                     yield Button("Del", id="author-del", variant="error")
+
+        # Recommendation Weights section
+        with Vertical(id="weights-section"):
+            yield Static("Recommendation Weights", id="weights-title")
+            yield DataTable(id="weights-table", cursor_type="row", zebra_stripes=True)
+            yield Static(
+                "Total: 100%  [dim]← → to adjust · Reset button to restore defaults[/dim]",
+                id="weights-footer",
+            )
+            with Horizontal(id="weights-controls"):
+                yield Button("Reset Weights", id="weights-reset", variant="warning")
 
         # AI Config section
         with Vertical(id="ai-config-section"):
@@ -170,12 +215,20 @@ class PreferencesPane(Vertical):
         author_table.add_column("Author", key="author", width=24)
         author_table.add_column("Added", key="added", width=12)
 
+        # Initialize weights table
+        wt = self.query_one("#weights-table", DataTable)
+        wt.add_column("Weight", key="name", width=22)
+        wt.add_column("Value", key="value", width=6)
+        wt.add_column("Bar", key="bar", width=34)
+
         self._load_all()
         self._load_ai_provider()
+        self._load_weights()
 
     def action_refresh(self) -> None:
         self._load_all()
         self._load_ai_provider()
+        self._load_weights()
 
     def action_delete_selected(self) -> None:
         # Delete based on focused table
@@ -433,3 +486,76 @@ class PreferencesPane(Vertical):
         for a in authors:
             added = a.added_at.strftime("%Y-%m-%d")
             table.add_row(a.name, added, key=a.name)
+
+    # === Recommendation Weights ===
+
+    @staticmethod
+    def _make_bar(value: int, width: int = 30) -> str:
+        filled = round(value * width / 100)
+        return "[green]" + "\u2588" * filled + "[/green]" + "\u2591" * (width - filled)
+
+    @work(thread=True, exclusive=True, group="pref-load-weights")
+    def _load_weights(self) -> None:
+        weights = self.app.bridge.settings.get_weights()
+        self.app.call_from_thread(self._populate_weights, weights)
+
+    def _populate_weights(self, weights: dict[str, int]) -> None:
+        table = self.query_one("#weights-table", DataTable)
+        table.clear()
+        for key in WEIGHT_KEYS:
+            label = _WEIGHT_LABELS[key]
+            value = weights[key]
+            bar = self._make_bar(value)
+            table.add_row(label, f"{value:3d}%", bar, key=key)
+        total = sum(weights.values())
+        self.query_one("#weights-footer", Static).update(
+            f"Total: [bold]{total}%[/bold]  [dim]← → to adjust · Reset button to restore defaults[/dim]"
+        )
+
+    def action_weight_decrease(self) -> None:
+        """Decrease the currently focused weight by 1."""
+        wt = self.query_one("#weights-table", DataTable)
+        if not wt.has_focus:
+            return
+        self._adjust_focused_weight(-1)
+
+    def action_weight_increase(self) -> None:
+        """Increase the currently focused weight by 1."""
+        wt = self.query_one("#weights-table", DataTable)
+        if not wt.has_focus:
+            return
+        self._adjust_focused_weight(1)
+
+    def _adjust_focused_weight(self, delta: int) -> None:
+        wt = self.query_one("#weights-table", DataTable)
+        if wt.cursor_row is None:
+            return
+        try:
+            row_key, _ = wt.coordinate_to_cell_key(wt.cursor_coordinate)
+        except Exception:
+            return
+        key = row_key.value if hasattr(row_key, "value") else str(row_key)
+        if key not in WEIGHT_KEYS:
+            return
+        self._do_adjust_weight(key, delta)
+
+    @work(thread=True, group="pref-weight-adjust")
+    def _do_adjust_weight(self, key: str, delta: int) -> None:
+        weights = self.app.bridge.settings.get_weights()
+        new_value = max(0, min(100, weights[key] + delta))
+        if new_value == weights[key]:
+            return
+        new_weights = adjust_weights(key, new_value, weights)
+        self.app.bridge.settings.set_weights(new_weights)
+        self.app.call_from_thread(self._populate_weights, new_weights)
+
+    @on(Button.Pressed, "#weights-reset")
+    def _on_weights_reset(self) -> None:
+        self._do_reset_weights()
+
+    @work(thread=True, group="pref-weight-reset")
+    def _do_reset_weights(self) -> None:
+        self.app.bridge.settings.reset_weights()
+        weights = self.app.bridge.settings.get_weights()
+        self.app.call_from_thread(self.app.notify, "Weights reset to defaults")
+        self.app.call_from_thread(self._populate_weights, weights)
