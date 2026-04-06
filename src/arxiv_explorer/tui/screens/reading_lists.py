@@ -5,7 +5,7 @@ from __future__ import annotations
 from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Button, DataTable, Label, ListItem, ListView, Static
+from textual.widgets import DataTable, Label, ListItem, ListView, Static
 
 from ...core.models import ReadingList, ReadingListPaper
 
@@ -41,14 +41,11 @@ class ReadingListsPane(Vertical):
     ReadingListsPane #rl-list-view {
         height: 1fr;
     }
-    ReadingListsPane #rl-left-buttons {
+    ReadingListsPane #rl-left-hints {
         dock: bottom;
-        height: 3;
-        padding: 0;
-    }
-    ReadingListsPane #rl-left-buttons Button {
-        min-width: 10;
-        margin-right: 1;
+        height: 1;
+        padding: 0 1;
+        color: $text-muted;
     }
     ReadingListsPane #rl-right {
         width: 2fr;
@@ -63,14 +60,11 @@ class ReadingListsPane(Vertical):
     ReadingListsPane #rl-papers-table {
         height: 1fr;
     }
-    ReadingListsPane #rl-paper-actions {
+    ReadingListsPane #rl-paper-hints {
         dock: bottom;
-        height: 3;
-        padding: 0;
-    }
-    ReadingListsPane #rl-paper-actions Button {
-        min-width: 10;
-        margin-right: 1;
+        height: 1;
+        padding: 0 1;
+        color: $text-muted;
     }
     """
 
@@ -104,16 +98,18 @@ class ReadingListsPane(Vertical):
             with Vertical(id="rl-left"):
                 yield Static("Reading Lists", id="rl-left-title")
                 yield ListView(id="rl-list-view")
-                with Horizontal(id="rl-left-buttons"):
-                    yield Button("+ List [n]", id="rl-create", variant="primary")
-                    yield Button("+ Folder [f]", id="rl-folder", variant="default")
-                    yield Button("Delete", id="rl-delete", variant="error")
+                yield Static(
+                    "[dim][n] New List  [f] Folder  [Del] Delete  [e] Rename[/dim]",
+                    id="rl-left-hints",
+                )
 
             with Vertical(id="rl-right"):
                 yield Static("Select a list", id="rl-right-title")
                 yield DataTable(id="rl-papers-table", cursor_type="row", zebra_stripes=True)
-                with Horizontal(id="rl-paper-actions"):
-                    yield Button("Remove [Del]", id="rl-remove-paper", variant="error")
+                yield Static(
+                    "[dim][Del] Remove  [s] Toggle Sort  [m] Move  [c] Copy[/dim]",
+                    id="rl-paper-hints",
+                )
 
     def on_mount(self) -> None:
         table = self.query_one("#rl-papers-table", DataTable)
@@ -233,22 +229,6 @@ class ReadingListsPane(Vertical):
             else:
                 self._current_list = selected
                 self._load_papers()
-
-    @on(Button.Pressed, "#rl-create")
-    def _on_create_clicked(self) -> None:
-        self.action_create_list()
-
-    @on(Button.Pressed, "#rl-folder")
-    def _on_folder_clicked(self) -> None:
-        self.action_create_folder()
-
-    @on(Button.Pressed, "#rl-delete")
-    def _on_delete_clicked(self) -> None:
-        self.action_delete_item()
-
-    @on(Button.Pressed, "#rl-remove-paper")
-    def _on_remove_paper_clicked(self) -> None:
-        self._remove_current_paper()
 
     # =========================================================================
     # Actions

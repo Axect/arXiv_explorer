@@ -69,9 +69,15 @@ class PreferencesPane(Vertical):
         min-width: 8;
         margin-right: 1;
     }
+    PreferencesPane .pref-hint {
+        height: 1;
+        dock: bottom;
+        color: $text-muted;
+        padding: 0 1;
+    }
     PreferencesPane #weights-section {
         height: auto;
-        max-height: 10;
+        max-height: 12;
         dock: bottom;
         padding: 0 1;
         margin-bottom: 1;
@@ -82,7 +88,7 @@ class PreferencesPane(Vertical):
         height: 1;
     }
     PreferencesPane #weights-table {
-        height: 6;
+        height: auto;
     }
     PreferencesPane #weights-footer {
         height: 1;
@@ -147,8 +153,7 @@ class PreferencesPane(Vertical):
                     yield Input(
                         placeholder="Priority", id="cat-priority", type="integer", value="1"
                     )
-                    yield Button("+", id="cat-add", variant="primary")
-                    yield Button("Del", id="cat-del", variant="error")
+                yield Static("[dim][Enter] Add  [Del] Remove[/dim]", classes="pref-hint")
 
             # Keyword section
             with Vertical(classes="pref-section"):
@@ -156,9 +161,8 @@ class PreferencesPane(Vertical):
                 yield DataTable(id="kw-table", cursor_type="row", zebra_stripes=True)
                 with Horizontal(classes="pref-input-row"):
                     yield Input(placeholder="Keyword", id="kw-input")
-                    yield Input(placeholder="Weight", id="kw-weight", value="1.0")
-                    yield Button("+", id="kw-add", variant="primary")
-                    yield Button("Del", id="kw-del", variant="error")
+                    yield Input(placeholder="Weight %", id="kw-weight", value="50")
+                yield Static("[dim][Enter] Add  [Del] Remove[/dim]", classes="pref-hint")
 
             # Authors section
             with Vertical(classes="pref-section"):
@@ -166,8 +170,7 @@ class PreferencesPane(Vertical):
                 yield DataTable(id="author-table", cursor_type="row", zebra_stripes=True)
                 with Horizontal(classes="pref-input-row"):
                     yield Input(placeholder="Author name", id="author-input")
-                    yield Button("+", id="author-add", variant="primary")
-                    yield Button("Del", id="author-del", variant="error")
+                yield Static("[dim][Enter] Add  [Del] Remove[/dim]", classes="pref-hint")
 
         # Recommendation Weights section
         with Vertical(id="weights-section"):
@@ -254,15 +257,11 @@ class PreferencesPane(Vertical):
     def _on_category_picked(self, code: str | None) -> None:
         if code:
             self._pending_cat = code
-            self.app.notify(f"Selected: {code} — press + to add", severity="information")
+            self.app.notify(f"Selected: {code} — press Enter to add", severity="information")
 
-    @on(Button.Pressed, "#cat-add")
-    def _on_cat_add(self) -> None:
+    @on(Input.Submitted, "#cat-priority")
+    def _on_cat_priority_submitted(self) -> None:
         self._add_category()
-
-    @on(Button.Pressed, "#cat-del")
-    def _on_cat_del(self) -> None:
-        self._delete_category()
 
     def _add_category(self) -> None:
         cat = self._pending_cat
@@ -302,14 +301,6 @@ class PreferencesPane(Vertical):
 
     # === Keywords ===
 
-    @on(Button.Pressed, "#kw-add")
-    def _on_kw_add(self) -> None:
-        self._add_keyword()
-
-    @on(Button.Pressed, "#kw-del")
-    def _on_kw_del(self) -> None:
-        self._delete_keyword()
-
     @on(Input.Submitted, "#kw-input")
     def _on_kw_submitted(self) -> None:
         self._add_keyword()
@@ -321,13 +312,14 @@ class PreferencesPane(Vertical):
             return
         weight_str = self.query_one("#kw-weight", Input).value.strip()
         try:
-            weight = float(weight_str) if weight_str else 1.0
+            weight = int(weight_str) if weight_str else 50
+            weight = max(0, min(100, weight))
         except ValueError:
-            weight = 1.0
+            weight = 50
         self._do_add_keyword(kw, weight)
 
     @work(thread=True, group="pref-kw-add")
-    def _do_add_keyword(self, keyword: str, weight: float) -> None:
+    def _do_add_keyword(self, keyword: str, weight: int) -> None:
         self.app.bridge.preferences.add_keyword(keyword, weight)
         self.app.call_from_thread(self.app.notify, f"Added: {keyword}")
         self.app.call_from_thread(self.query_one("#kw-input", Input).clear)
@@ -351,14 +343,6 @@ class PreferencesPane(Vertical):
         self._load_keywords()
 
     # === Authors ===
-
-    @on(Button.Pressed, "#author-add")
-    def _on_author_add(self) -> None:
-        self._add_author()
-
-    @on(Button.Pressed, "#author-del")
-    def _on_author_del(self) -> None:
-        self._delete_author()
 
     @on(Input.Submitted, "#author-input")
     def _on_author_submitted(self) -> None:
@@ -481,7 +465,7 @@ class PreferencesPane(Vertical):
         table = self.query_one("#kw-table", DataTable)
         table.clear()
         for k in keywords:
-            table.add_row(k.keyword, f"{k.weight:.1f}", k.source, key=k.keyword)
+            table.add_row(k.keyword, f"{k.weight}%", k.source, key=k.keyword)
 
     @work(thread=True, exclusive=True, group="pref-load-author")
     def _load_authors(self) -> None:

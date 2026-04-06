@@ -64,11 +64,11 @@ class PaperTable(Vertical):
 
     def on_mount(self) -> None:
         table = self.query_one("#pt-table", DataTable)
-        table.add_column("#", key="idx", width=4)
-        table.add_column("ID", key="arxiv_id", width=16)
+        table.add_column("#", key="idx", width=3)
+        table.add_column("ID", key="arxiv_id", width=14)
         table.add_column("Title", key="title")
-        table.add_column("Category", key="category", width=10)
-        table.add_column("Score", key="score", width=6)
+        table.add_column("Category", key="category", width=8)
+        table.add_column("Score", key="score", width=5)
 
     def set_loading(self) -> None:
         self.query_one("#pt-loading").remove_class("hidden")

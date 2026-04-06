@@ -170,7 +170,7 @@ class KeywordInterest:
 
     id: int
     keyword: str
-    weight: float = 1.0
+    weight: int = 50
     source: str = "explicit"  # 'explicit' or 'inferred'
 
 

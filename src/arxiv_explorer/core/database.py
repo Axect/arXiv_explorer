@@ -167,6 +167,14 @@ def init_db(db_path: Path | None = None) -> None:
             if column not in existing_columns:
                 conn.execute(sql)
 
+        # Migration: convert old float keyword weights (e.g. 1.0, 1.5) to integer percentages
+        # Old format: float like 1.0 or 1.5; new format: int 0-100 (50 = 50%)
+        conn.execute(
+            """UPDATE keyword_interests
+               SET weight = CAST(ROUND(weight * 100) AS INTEGER)
+               WHERE weight < 1.1"""
+        )
+
         # Create system lists if they don't exist
         for system_name in ("Like", "Dislike"):
             exists = conn.execute(

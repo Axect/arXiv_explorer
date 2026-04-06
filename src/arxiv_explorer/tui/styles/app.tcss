@@ -115,6 +115,13 @@ ModalScreen > Vertical {
     min-width: 8;
 }
 
+/* Key hint rows */
+.key-hints {
+    height: 1;
+    color: $text-muted;
+    padding: 0 1;
+}
+
 /* Common ListView */
 ListView {
     height: 1fr;

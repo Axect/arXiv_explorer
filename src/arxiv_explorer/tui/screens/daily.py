@@ -30,28 +30,25 @@ class DailyPane(Vertical):
         background: $surface;
     }
     DailyPane #daily-toolbar Select {
-        width: 16;
+        width: 14;
         margin-right: 1;
     }
     DailyPane #daily-toolbar Button {
-        min-width: 10;
+        min-width: 8;
     }
     DailyPane #daily-body {
         height: 1fr;
     }
     DailyPane #daily-left {
-        width: 2fr;
+        width: 3fr;
         min-width: 50;
     }
-    DailyPane #daily-interaction {
+    DailyPane #daily-key-hints {
         dock: bottom;
-        height: 3;
+        height: 1;
         padding: 0 1;
-        background: $surface;
-    }
-    DailyPane #daily-interaction Button {
-        min-width: 12;
-        margin-right: 1;
+        color: $text-muted;
+        background: $surface-darken-1;
     }
     DailyPane #daily-status {
         dock: bottom;
@@ -91,13 +88,10 @@ class DailyPane(Vertical):
         with Horizontal(id="daily-body"):
             with Vertical(id="daily-left"):
                 yield PaperTable(id="daily-table")
-                with Horizontal(id="daily-interaction"):
-                    yield Button("Like [l]", id="btn-like", variant="success")
-                    yield Button("Dislike [d]", id="btn-dislike", variant="error")
-                    yield Button("Summarize [s]", id="btn-summarize", variant="warning")
-                    yield Button("Translate [t]", id="btn-translate")
-                    yield Button("Review [w]", id="btn-review", variant="primary")
-                    yield Button("Bookmark [b]", id="btn-bookmark")
+                yield Static(
+                    "[dim][l]ike  [d]islike  [s]ummarize  [t]ranslate  [w]review  [b]ookmark[/dim]",
+                    id="daily-key-hints",
+                )
                 yield Static("", id="daily-status")
             yield PaperPanel(id="daily-panel")
 
@@ -110,30 +104,6 @@ class DailyPane(Vertical):
     @on(Button.Pressed, "#daily-fetch")
     def _on_fetch_clicked(self) -> None:
         self._fetch_papers()
-
-    @on(Button.Pressed, "#btn-like")
-    def _on_like_clicked(self) -> None:
-        self.action_like()
-
-    @on(Button.Pressed, "#btn-dislike")
-    def _on_dislike_clicked(self) -> None:
-        self.action_dislike()
-
-    @on(Button.Pressed, "#btn-summarize")
-    def _on_summarize_clicked(self) -> None:
-        self.action_summarize()
-
-    @on(Button.Pressed, "#btn-translate")
-    def _on_translate_clicked(self) -> None:
-        self.action_translate()
-
-    @on(Button.Pressed, "#btn-review")
-    def _on_review_clicked(self) -> None:
-        self.action_review()
-
-    @on(Button.Pressed, "#btn-bookmark")
-    def _on_bookmark_clicked(self) -> None:
-        self.action_bookmark()
 
     @on(PaperTable.PaperHighlighted)
     def _on_paper_highlighted(self, event: PaperTable.PaperHighlighted) -> None:

@@ -88,7 +88,7 @@ class TestDataclassDefaults:
 
     def test_keyword_interest_defaults(self):
         ki = KeywordInterest(id=1, keyword="test")
-        assert ki.weight == 1.0
+        assert ki.weight == 50
         assert ki.source == "explicit"
 
     def test_recommended_paper_defaults(self, sample_paper: Paper):
