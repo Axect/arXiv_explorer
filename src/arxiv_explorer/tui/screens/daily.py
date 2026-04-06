@@ -69,6 +69,7 @@ class DailyPane(Vertical):
         ("s", "summarize", "Summarize"),
         ("t", "translate", "Translate"),
         ("w", "review", "Review"),
+        ("b", "bookmark", "Bookmark"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -96,6 +97,7 @@ class DailyPane(Vertical):
                     yield Button("Summarize [s]", id="btn-summarize", variant="warning")
                     yield Button("Translate [t]", id="btn-translate")
                     yield Button("Review [w]", id="btn-review", variant="primary")
+                    yield Button("Bookmark [b]", id="btn-bookmark")
                 yield Static("", id="daily-status")
             yield PaperPanel(id="daily-panel")
 
@@ -129,6 +131,10 @@ class DailyPane(Vertical):
     def _on_review_clicked(self) -> None:
         self.action_review()
 
+    @on(Button.Pressed, "#btn-bookmark")
+    def _on_bookmark_clicked(self) -> None:
+        self.action_bookmark()
+
     @on(PaperTable.PaperHighlighted)
     def _on_paper_highlighted(self, event: PaperTable.PaperHighlighted) -> None:
         panel = self.query_one("#daily-panel", PaperPanel)
@@ -148,6 +154,8 @@ class DailyPane(Vertical):
 
     @work(thread=True, exclusive=True, group="daily-fetch")
     def _do_fetch(self) -> None:
+        from datetime import date
+
         days_select = self.query_one("#daily-days", Select)
         limit_select = self.query_one("#daily-limit", Select)
         days = days_select.value if days_select.value != Select.BLANK else 7
@@ -160,11 +168,28 @@ class DailyPane(Vertical):
             self.app.call_from_thread(self._show_error, str(e))
             return
 
-        self.app.call_from_thread(self._update_papers, papers)
+        # Load current month bookmarks to show visual indicator
+        month_name = date.today().strftime("%Y%m")
+        bookmarked: set[str] = set()
+        try:
+            top_level = bridge.reading_lists.get_top_level()
+            for item in top_level:
+                if item.name == month_name and item.is_folder:
+                    month_papers = bridge.reading_lists.get_papers_by_list_id(item.id)
+                    bookmarked = {p.arxiv_id for p in month_papers}
+                    break
+        except Exception:
+            pass
 
-    def _update_papers(self, papers: list[RecommendedPaper]) -> None:
+        self.app.call_from_thread(self._update_papers, papers, bookmarked)
+
+    def _update_papers(
+        self, papers: list[RecommendedPaper], bookmarked: set[str] | None = None
+    ) -> None:
         table = self.query_one("#daily-table", PaperTable)
         table.set_papers(papers)
+        if bookmarked:
+            table.set_bookmarked(bookmarked)
         if not papers:
             cats = self.app.bridge.preferences.get_categories()
             if not cats:
@@ -286,3 +311,22 @@ class DailyPane(Vertical):
         from .review_screen import ReviewScreen
 
         self.app.push_screen(ReviewScreen(rec))
+
+    def action_bookmark(self) -> None:
+        rec = self._get_current()
+        if not rec:
+            return
+        self._do_bookmark(rec)
+
+    @work(thread=True, group="bookmark")
+    def _do_bookmark(self, rec: RecommendedPaper) -> None:
+        from datetime import date
+
+        svc = self.app.bridge.reading_lists
+        arxiv_id = rec.paper.arxiv_id
+        added = svc.toggle_paper_in_month_folder(arxiv_id, date.today())
+        table = self.query_one("#daily-table", PaperTable)
+        self.app.call_from_thread(table.toggle_bookmark, arxiv_id)
+        month = date.today().strftime("%Y%m")
+        msg = f"Saved to {month}" if added else f"Removed from {month}"
+        self.app.call_from_thread(self.app.notify, msg)

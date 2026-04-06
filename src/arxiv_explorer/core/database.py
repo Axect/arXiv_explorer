@@ -38,9 +38,13 @@ CREATE TABLE IF NOT EXISTS paper_summaries (
 -- Reading Lists
 CREATE TABLE IF NOT EXISTS reading_lists (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
     description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    parent_id INTEGER REFERENCES reading_lists(id) ON DELETE CASCADE,
+    is_folder BOOLEAN DEFAULT 0,
+    is_system BOOLEAN DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(name, parent_id)
 );
 
 -- Reading List Papers
@@ -133,12 +137,36 @@ def init_db(db_path: Path | None = None) -> None:
 
     with sqlite3.connect(db_path) as conn:
         conn.executescript(SCHEMA)
+
+        # Migration: add new columns to reading_lists if they don't exist
+        existing_columns = {
+            row[1]
+            for row in conn.execute("PRAGMA table_info(reading_lists)").fetchall()
+        }
+        migrations = [
+            (
+                "parent_id",
+                "ALTER TABLE reading_lists ADD COLUMN parent_id INTEGER REFERENCES reading_lists(id) ON DELETE CASCADE",
+            ),
+            (
+                "is_folder",
+                "ALTER TABLE reading_lists ADD COLUMN is_folder BOOLEAN DEFAULT 0",
+            ),
+            (
+                "is_system",
+                "ALTER TABLE reading_lists ADD COLUMN is_system BOOLEAN DEFAULT 0",
+            ),
+        ]
+        for column, sql in migrations:
+            if column not in existing_columns:
+                conn.execute(sql)
+
         conn.commit()
 
 
 @contextmanager
 def get_connection(db_path: Path | None = None) -> Iterator[sqlite3.Connection]:
-    """Database connection context manager."""
+    """Database connection context manager. Auto-commits on clean exit."""
     if db_path is None:
         db_path = get_config().db_path
 
@@ -146,6 +174,10 @@ def get_connection(db_path: Path | None = None) -> Iterator[sqlite3.Connection]:
     conn.row_factory = sqlite3.Row
     try:
         yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
