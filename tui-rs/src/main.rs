@@ -202,7 +202,7 @@ fn render_daily(f: &mut Frame, app: &mut App, area: Rect) {
 
     if total == 0 {
         let msg = Paragraph::new(format!(
-            "No papers loaded. Days={} Limit={}  Press 'r' to fetch.  D/f=Days  N/n=Limit",
+            "No papers loaded. Days={} Limit={}  Press 'r' to fetch.  [/]=Days  -/==Limit",
             app.daily.days, app.daily.limit
         ))
             .style(Style::default().fg(TEXT_DIM).bg(BG))
