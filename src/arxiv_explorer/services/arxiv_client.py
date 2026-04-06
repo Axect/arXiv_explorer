@@ -187,7 +187,9 @@ class ArxivClient:
             return []
         return list(self._get_cached_batch(paper_ids).values())
 
-    def _save_fetch_cache(self, fetch_date: str, days: int, cat_hash: str, paper_ids: list[str]) -> None:
+    def _save_fetch_cache(
+        self, fetch_date: str, days: int, cat_hash: str, paper_ids: list[str]
+    ) -> None:
         """Save a fetch cache entry."""
         with get_connection() as conn:
             conn.execute(
@@ -201,9 +203,7 @@ class ArxivClient:
     def _cleanup_stale_cache(self) -> None:
         """Remove cache entries older than 7 days."""
         with get_connection() as conn:
-            conn.execute(
-                "DELETE FROM daily_fetch_cache WHERE fetch_date < date('now', '-7 days')"
-            )
+            conn.execute("DELETE FROM daily_fetch_cache WHERE fetch_date < date('now', '-7 days')")
             conn.commit()
 
     @staticmethod

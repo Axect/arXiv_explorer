@@ -248,7 +248,9 @@ def show(
             console=console,
         ) as progress:
             progress.add_task("Translating...", total=None)
-            paper_translation = translator.translate(arxiv_id, paper.title, paper.abstract, force=force)
+            paper_translation = translator.translate(
+                arxiv_id, paper.title, paper.abstract, force=force
+            )
 
     print_paper_detail(paper, paper_summary, paper_translation)
 
