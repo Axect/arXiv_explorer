@@ -60,10 +60,26 @@ app.command(name="review")(review.review)
 
 @app.command()
 def tui():
-    """Launch TUI mode."""
-    from ..tui.app import launch_tui
+    """Launch TUI mode (Rust)."""
+    import shutil
+    import subprocess
 
-    launch_tui()
+    bin_path = shutil.which("axp-tui")
+    if bin_path is None:
+        # Try cargo-built binary in tui-rs/target/release
+        from pathlib import Path
+
+        project_root = Path(__file__).resolve().parents[3]
+        candidate = project_root / "tui-rs" / "target" / "release" / "axp-tui"
+        if candidate.exists():
+            bin_path = str(candidate)
+        else:
+            typer.echo(
+                "axp-tui not found. Build it with: cd tui-rs && cargo build --release"
+            )
+            raise typer.Exit(1)
+
+    raise typer.Exit(subprocess.call([bin_path]))
 
 
 if __name__ == "__main__":
