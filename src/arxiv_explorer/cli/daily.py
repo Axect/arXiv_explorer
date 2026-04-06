@@ -199,6 +199,7 @@ def show(
         False, "--detailed", "-d", help="Generate detailed summary (longer summary and analysis)"
     ),
     translate: bool = typer.Option(False, "--translate", "-t", help="Include translation"),
+    force: bool = typer.Option(False, "--force", "-f", help="Regenerate (ignore cache)"),
 ):
     """View paper details."""
     service = PaperService()
@@ -235,7 +236,7 @@ def show(
     if summary or detailed:
         summarizer = SummarizationService()
         paper_summary = summarizer.summarize(
-            arxiv_id, paper.title, paper.abstract, detailed=detailed
+            arxiv_id, paper.title, paper.abstract, detailed=detailed, force=force
         )
 
     paper_translation = None
@@ -247,13 +248,14 @@ def show(
             console=console,
         ) as progress:
             progress.add_task("Translating...", total=None)
-            paper_translation = translator.translate(arxiv_id, paper.title, paper.abstract)
+            paper_translation = translator.translate(arxiv_id, paper.title, paper.abstract, force=force)
 
     print_paper_detail(paper, paper_summary, paper_translation)
 
 
 def translate(
     arxiv_id: str = typer.Argument(..., help="arXiv ID"),
+    force: bool = typer.Option(False, "--force", "-f", help="Regenerate (ignore cache)"),
 ):
     """Translate a paper."""
     service = PaperService()
@@ -270,7 +272,7 @@ def translate(
         console=console,
     ) as progress:
         progress.add_task("Translating...", total=None)
-        translation = translator.translate(arxiv_id, paper.title, paper.abstract)
+        translation = translator.translate(arxiv_id, paper.title, paper.abstract, force=force)
 
     if not translation:
         print_error("Translation failed")

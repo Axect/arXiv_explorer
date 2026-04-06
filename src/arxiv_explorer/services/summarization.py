@@ -13,17 +13,18 @@ class SummarizationService:
     """Paper summarization using AI CLI providers."""
 
     def summarize(
-        self, arxiv_id: str, title: str, abstract: str, detailed: bool = False
+        self, arxiv_id: str, title: str, abstract: str, detailed: bool = False, force: bool = False
     ) -> PaperSummary | None:
         """Generate a paper summary."""
-        # Check cache
-        cached = self._get_cached(arxiv_id)
-        if cached:
-            # If detailed summary requested but not cached, regenerate
-            if detailed and not cached.summary_detailed:
-                pass  # Regenerate below
-            else:
-                return cached
+        # Check cache (skip if force regeneration)
+        if not force:
+            cached = self._get_cached(arxiv_id)
+            if cached:
+                # If detailed summary requested but not cached, regenerate
+                if detailed and not cached.summary_detailed:
+                    pass  # Regenerate below
+                else:
+                    return cached
 
         # Generate summary using AI provider
         if detailed:
