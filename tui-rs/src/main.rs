@@ -151,6 +151,7 @@ fn render(f: &mut Frame, app: &mut App) {
         match overlay {
             app::OverlayMode::CategoryPicker { .. } => render_category_picker(f, app),
             app::OverlayMode::KeywordInput { .. } => render_keyword_input(f, app),
+            app::OverlayMode::AuthorInput { .. } => render_author_input(f, app),
         }
     }
 
@@ -1030,7 +1031,7 @@ fn render_prefs(f: &mut Frame, app: &App, area: Rect) {
     // Authors
     {
         let block = Block::default()
-            .title(" Authors ")
+            .title(" Authors [a:Add Del:Rm] ")
             .borders(Borders::ALL)
             .border_style(sec_border(2))
             .style(Style::default().bg(BG));
@@ -1665,6 +1666,54 @@ fn render_keyword_input(f: &mut Frame, app: &App) {
             Paragraph::new(" [←→] weight  [Enter] add  [Esc] close")
                 .style(Style::default().fg(TEXT_DIM).bg(SURFACE)),
             chunks[3],
+        );
+    }
+}
+
+fn render_author_input(f: &mut Frame, app: &App) {
+    let area = f.area();
+    let w: u16 = 44;
+    let h: u16 = 5;
+    let x = (area.width.saturating_sub(w)) / 2;
+    let y = (area.height.saturating_sub(h)) / 2;
+    let overlay = Rect::new(x, y, w, h);
+
+    f.render_widget(Clear, overlay);
+
+    let block = Block::default()
+        .title(" Add Author ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(ACCENT))
+        .style(Style::default().bg(BG));
+    let inner = block.inner(overlay);
+    f.render_widget(block, overlay);
+
+    if let Some(crate::app::OverlayMode::AuthorInput { text }) = &app.overlay {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1), // name
+                Constraint::Length(1), // separator
+                Constraint::Length(1), // hints
+            ])
+            .split(inner);
+
+        let name_line = Line::from(vec![
+            Span::styled(" Name: ", Style::default().fg(ACCENT).bold()),
+            Span::styled(format!("{text}_"), Style::default().fg(TEXT)),
+        ]);
+        f.render_widget(Paragraph::new(name_line).style(Style::default().bg(BG)), chunks[0]);
+
+        f.render_widget(
+            Paragraph::new("─".repeat(chunks[1].width as usize))
+                .style(Style::default().fg(TEXT_DIM).bg(BG)),
+            chunks[1],
+        );
+
+        f.render_widget(
+            Paragraph::new(" [Enter] add  [Esc] close")
+                .style(Style::default().fg(TEXT_DIM).bg(SURFACE)),
+            chunks[2],
         );
     }
 }

@@ -248,6 +248,9 @@ pub enum OverlayMode {
         text: String,
         weight: i64, // 1-5, default 3
     },
+    AuthorInput {
+        text: String,
+    },
 }
 
 // =============================================================================

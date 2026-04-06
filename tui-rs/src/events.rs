@@ -249,6 +249,43 @@ pub fn handle_overlay_key(app: &mut App, key: KeyCode) {
                 }
             }
         }
+        crate::app::OverlayMode::AuthorInput { mut text } => {
+            match key {
+                KeyCode::Esc => {
+                    app.overlay = None;
+                }
+                KeyCode::Enter => {
+                    let trimmed = text.trim().to_string();
+                    if trimmed.is_empty() {
+                        app.push_toast("Enter an author name", false);
+                        app.overlay = Some(crate::app::OverlayMode::AuthorInput { text });
+                    } else {
+                        match app.db.add_author(&trimmed) {
+                            Ok(_) => {
+                                app.prefs.authors = app.db.get_authors().unwrap_or_default();
+                                app.push_toast(format!("Added: {trimmed}"), false);
+                                app.overlay = None;
+                            }
+                            Err(e) => {
+                                app.push_toast(format!("Error: {e}"), true);
+                                app.overlay = Some(crate::app::OverlayMode::AuthorInput { text });
+                            }
+                        }
+                    }
+                }
+                KeyCode::Backspace => {
+                    text.pop();
+                    app.overlay = Some(crate::app::OverlayMode::AuthorInput { text });
+                }
+                KeyCode::Char(c) => {
+                    text.push(c);
+                    app.overlay = Some(crate::app::OverlayMode::AuthorInput { text });
+                }
+                _ => {
+                    app.overlay = Some(crate::app::OverlayMode::AuthorInput { text });
+                }
+            }
+        }
     }
 }
 
@@ -1112,6 +1149,11 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                     app.overlay = Some(crate::app::OverlayMode::KeywordInput {
                         text: String::new(),
                         weight: 3,
+                    });
+                }
+                2 => {
+                    app.overlay = Some(crate::app::OverlayMode::AuthorInput {
+                        text: String::new(),
                     });
                 }
                 _ => {}
