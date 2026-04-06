@@ -464,6 +464,14 @@ impl Database {
         }
     }
 
+    pub fn get_review_section_count(&self, arxiv_id: &str) -> Result<i64> {
+        self.conn.query_row(
+            "SELECT COUNT(*) FROM paper_review_sections WHERE arxiv_id = ?",
+            params![arxiv_id],
+            |row| row.get(0),
+        )
+    }
+
     pub fn get_translation(&self, arxiv_id: &str) -> Result<Option<PaperTranslation>> {
         let mut stmt = self.conn.prepare(
             "SELECT arxiv_id, target_language, translated_title, translated_abstract \

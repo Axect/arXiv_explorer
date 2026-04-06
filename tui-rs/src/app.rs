@@ -228,8 +228,9 @@ pub enum ConfirmAction {
 
 pub struct PaperDetailState {
     pub paper: ScoredPaper,
-    pub summary: Option<String>,
+    pub summary: Option<crate::db::models::PaperSummary>,
     pub translation: Option<(String, String)>, // (translated_title, translated_abstract)
+    pub review_sections: i64,                  // count of cached review sections (0 = not reviewed)
     pub scroll: u16,
 }
 
@@ -381,14 +382,17 @@ impl App {
                             .db
                             .get_summary(&arxiv_id)
                             .ok()
-                            .flatten()
-                            .and_then(|s| s.summary_short.or(s.summary_detailed));
+                            .flatten();
                         detail.translation = self
                             .db
                             .get_translation(&arxiv_id)
                             .ok()
                             .flatten()
                             .map(|t| (t.translated_title, t.translated_abstract));
+                        detail.review_sections = self
+                            .db
+                            .get_review_section_count(&arxiv_id)
+                            .unwrap_or(0);
                     }
                 }
             }
@@ -439,18 +443,22 @@ impl App {
             .db
             .get_summary(&paper.arxiv_id)
             .ok()
-            .flatten()
-            .and_then(|s| s.summary_short.or(s.summary_detailed));
+            .flatten();
         let translation = self
             .db
             .get_translation(&paper.arxiv_id)
             .ok()
             .flatten()
             .map(|t| (t.translated_title, t.translated_abstract));
+        let review_sections = self
+            .db
+            .get_review_section_count(&paper.arxiv_id)
+            .unwrap_or(0);
         self.detail = Some(PaperDetailState {
             paper,
             summary,
             translation,
+            review_sections,
             scroll: 0,
         });
     }

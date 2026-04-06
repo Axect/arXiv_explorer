@@ -1217,47 +1217,153 @@ fn render_paper_detail(f: &mut Frame, app: &App) {
     lines.push(Line::default());
 
     // Summary section
+    let sep = "─".repeat(content_width.saturating_sub(2));
     lines.push(Line::from(Span::styled(
-        "── Summary ──",
+        format!("── Summary {sep}"),
         Style::default().fg(ACCENT).bold(),
     )));
     match &detail.summary {
         Some(s) => {
-            for line in word_wrap(s, wrap_width) {
-                lines.push(Line::from(Span::styled(line, Style::default().fg(TEXT))));
+            // Show summary_short first (bold)
+            if let Some(short) = &s.summary_short {
+                lines.push(Line::default());
+                for line in word_wrap(short, wrap_width.saturating_sub(2)) {
+                    lines.push(Line::from(vec![
+                        Span::raw("  "),
+                        Span::styled(line, Style::default().fg(TEXT).bold()),
+                    ]));
+                }
+            }
+            // Show summary_detailed with ## section headers parsed
+            if let Some(detailed_text) = &s.summary_detailed {
+                lines.push(Line::default());
+                for raw_line in detailed_text.split('\n') {
+                    if let Some(heading) = raw_line.strip_prefix("## ") {
+                        lines.push(Line::default());
+                        lines.push(Line::from(vec![
+                            Span::raw("  "),
+                            Span::styled(heading, Style::default().fg(ACCENT).bold()),
+                            Span::raw(":"),
+                        ]));
+                    } else if raw_line.is_empty() {
+                        // skip raw blank lines inside detailed text (we handle spacing above)
+                    } else {
+                        for wrapped in word_wrap(raw_line, wrap_width.saturating_sub(4)) {
+                            lines.push(Line::from(vec![
+                                Span::raw("    "),
+                                Span::styled(wrapped, Style::default().fg(TEXT)),
+                            ]));
+                        }
+                    }
+                }
+            }
+            // Key findings
+            let findings = s.key_findings.as_deref().map(parse_key_findings).unwrap_or_default();
+            if !findings.is_empty() {
+                lines.push(Line::default());
+                lines.push(Line::from(vec![
+                    Span::raw("  "),
+                    Span::styled("Key Findings:", Style::default().fg(ACCENT).bold()),
+                ]));
+                for finding in &findings {
+                    for (idx, wrapped) in word_wrap(finding, wrap_width.saturating_sub(6)).iter().enumerate() {
+                        if idx == 0 {
+                            lines.push(Line::from(vec![
+                                Span::raw("    "),
+                                Span::styled("• ", Style::default().fg(ACCENT)),
+                                Span::styled(wrapped.clone(), Style::default().fg(TEXT)),
+                            ]));
+                        } else {
+                            lines.push(Line::from(vec![
+                                Span::raw("      "),
+                                Span::styled(wrapped.clone(), Style::default().fg(TEXT)),
+                            ]));
+                        }
+                    }
+                }
             }
         }
         None => {
-            lines.push(Line::from(Span::styled(
-                "Press [s] to generate summary",
-                Style::default().fg(TEXT_DIM),
-            )));
+            lines.push(Line::from(vec![
+                Span::raw("  "),
+                Span::styled(
+                    "Press [s] to generate summary",
+                    Style::default().fg(TEXT_DIM),
+                ),
+            ]));
         }
     }
     lines.push(Line::default());
 
     // Translation section
     lines.push(Line::from(Span::styled(
-        "── Translation ──",
+        format!("── Translation {sep}"),
         Style::default().fg(ACCENT).bold(),
     )));
     match &detail.translation {
         Some((title, abstract_text)) => {
+            lines.push(Line::default());
             lines.push(Line::from(vec![
+                Span::raw("  "),
                 Span::styled("Title: ", Style::default().fg(ACCENT)),
                 Span::styled(title.clone(), Style::default().fg(TEXT)),
             ]));
             lines.push(Line::default());
-            for line in word_wrap(abstract_text, wrap_width) {
-                lines.push(Line::from(Span::styled(line, Style::default().fg(TEXT))));
+            for line in word_wrap(abstract_text, wrap_width.saturating_sub(2)) {
+                lines.push(Line::from(vec![
+                    Span::raw("  "),
+                    Span::styled(line, Style::default().fg(TEXT)),
+                ]));
             }
         }
         None => {
-            lines.push(Line::from(Span::styled(
-                "Press [t] to translate",
-                Style::default().fg(TEXT_DIM),
-            )));
+            lines.push(Line::from(vec![
+                Span::raw("  "),
+                Span::styled(
+                    "Press [t] to translate",
+                    Style::default().fg(TEXT_DIM),
+                ),
+            ]));
         }
+    }
+    lines.push(Line::default());
+
+    // Review section
+    lines.push(Line::from(Span::styled(
+        format!("── Review {sep}"),
+        Style::default().fg(ACCENT).bold(),
+    )));
+    lines.push(Line::default());
+    if detail.review_sections > 0 {
+        lines.push(Line::from(vec![
+            Span::raw("  "),
+            Span::styled("✓ ", Style::default().fg(SUCCESS_COLOR).bold()),
+            Span::styled(
+                format!("Review generated ({} sections cached)", detail.review_sections),
+                Style::default().fg(TEXT),
+            ),
+        ]));
+        lines.push(Line::from(vec![
+            Span::raw("  "),
+            Span::styled("Location: ", Style::default().fg(ACCENT)),
+            Span::styled("paper_review_sections table", Style::default().fg(TEXT_DIM)),
+        ]));
+        lines.push(Line::from(vec![
+            Span::raw("  "),
+            Span::styled("Use CLI: ", Style::default().fg(ACCENT)),
+            Span::styled(
+                format!("uv run axp review {} --output review.md", paper.arxiv_id),
+                Style::default().fg(TEXT_DIM),
+            ),
+        ]));
+    } else {
+        lines.push(Line::from(vec![
+            Span::raw("  "),
+            Span::styled(
+                "Press [r] to generate review",
+                Style::default().fg(TEXT_DIM),
+            ),
+        ]));
     }
 
     // Render content with scroll
@@ -1463,6 +1569,10 @@ fn build_bar(value: i64, max: i64, width: usize) -> String {
     };
     let empty = width - filled;
     format!("[{}{}]", "█".repeat(filled), "░".repeat(empty))
+}
+
+fn parse_key_findings(json_str: &str) -> Vec<String> {
+    serde_json::from_str(json_str).unwrap_or_default()
 }
 
 fn word_wrap(text: &str, width: usize) -> Vec<String> {
