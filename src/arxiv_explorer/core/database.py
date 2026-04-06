@@ -167,13 +167,17 @@ def init_db(db_path: Path | None = None) -> None:
             if column not in existing_columns:
                 conn.execute(sql)
 
-        # Migration: convert old float keyword weights (e.g. 1.0, 1.5) to integer percentages
-        # Old format: float like 1.0 or 1.5; new format: int 0-100 (50 = 50%)
-        conn.execute(
-            """UPDATE keyword_interests
-               SET weight = CAST(ROUND(weight * 100) AS INTEGER)
-               WHERE weight < 1.1"""
-        )
+        # Migrate keyword weights to 1-5 star scale
+        rows = conn.execute("SELECT id, weight FROM keyword_interests").fetchall()
+        for row in rows:
+            w = row[1] if isinstance(row[1], (int, float)) else float(row[1])
+            if w < 1.1:  # Old float format (0.5, 1.0, etc.)
+                stars = max(1, min(5, round(w * 5)))
+            elif w > 5:  # Percentage format (50, 75, etc.)
+                stars = max(1, min(5, round(w * 5 / 100)))
+            else:  # Already 1-5
+                stars = max(1, min(5, round(w)))
+            conn.execute("UPDATE keyword_interests SET weight = ? WHERE id = ?", (stars, row[0]))
 
         # Create system lists if they don't exist
         for system_name in ("Like", "Dislike"):

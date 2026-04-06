@@ -138,8 +138,9 @@ class PreferenceService:
 
     # === Keyword interests ===
 
-    def add_keyword(self, keyword: str, weight: int = 50) -> None:
-        """Add a keyword interest. Weight is a percentage (0-100)."""
+    def add_keyword(self, keyword: str, weight: int = 3) -> None:
+        """Add a keyword interest. Weight is 1-5 stars (default 3)."""
+        weight = max(1, min(5, weight))
         with get_connection() as conn:
             conn.execute(
                 """INSERT INTO keyword_interests (keyword, weight, source)

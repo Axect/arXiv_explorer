@@ -89,6 +89,6 @@ def sample_categories() -> list[PreferredCategory]:
 def sample_keywords() -> list[KeywordInterest]:
     """Sample keywords for scoring tests."""
     return [
-        KeywordInterest(id=1, keyword="deep learning", weight=1.5),
-        KeywordInterest(id=2, keyword="quantum", weight=1.0),
+        KeywordInterest(id=1, keyword="deep learning", weight=4),
+        KeywordInterest(id=2, keyword="quantum", weight=3),
     ]

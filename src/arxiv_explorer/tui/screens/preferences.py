@@ -161,7 +161,7 @@ class PreferencesPane(Vertical):
                 yield DataTable(id="kw-table", cursor_type="row", zebra_stripes=True)
                 with Horizontal(classes="pref-input-row"):
                     yield Input(placeholder="Keyword", id="kw-input")
-                    yield Input(placeholder="Weight %", id="kw-weight", value="50")
+                    yield Input(placeholder="Stars (1-5)", id="kw-weight", value="3")
                 yield Static("[dim][Enter] Add  [Del] Remove[/dim]", classes="pref-hint")
 
             # Authors section
@@ -312,10 +312,10 @@ class PreferencesPane(Vertical):
             return
         weight_str = self.query_one("#kw-weight", Input).value.strip()
         try:
-            weight = int(weight_str) if weight_str else 50
-            weight = max(0, min(100, weight))
+            weight = int(weight_str) if weight_str else 3
+            weight = max(1, min(5, weight))
         except ValueError:
-            weight = 50
+            weight = 3
         self._do_add_keyword(kw, weight)
 
     @work(thread=True, group="pref-kw-add")
@@ -461,11 +461,16 @@ class PreferencesPane(Vertical):
         keywords = self.app.bridge.preferences.get_keywords()
         self.app.call_from_thread(self._populate_keywords, keywords)
 
+    @staticmethod
+    def _stars_display(n: int) -> str:
+        """Convert 1-5 rating to star display."""
+        return "\u2605" * n + "\u2606" * (5 - n)
+
     def _populate_keywords(self, keywords: list[KeywordInterest]) -> None:
         table = self.query_one("#kw-table", DataTable)
         table.clear()
         for k in keywords:
-            table.add_row(k.keyword, f"{k.weight}%", k.source, key=k.keyword)
+            table.add_row(k.keyword, self._stars_display(k.weight), k.source, key=k.keyword)
 
     @work(thread=True, exclusive=True, group="pref-load-author")
     def _load_authors(self) -> None:

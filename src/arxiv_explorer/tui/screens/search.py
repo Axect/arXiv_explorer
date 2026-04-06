@@ -41,18 +41,14 @@ class SearchPane(Vertical):
         height: 1fr;
     }
     SearchPane #search-left {
-        width: 2fr;
+        width: 3fr;
         min-width: 50;
     }
-    SearchPane #search-interaction {
+    SearchPane #search-key-hints {
         dock: bottom;
-        height: 3;
+        height: 1;
         padding: 0 1;
-        background: $surface;
-    }
-    SearchPane #search-interaction Button {
-        min-width: 12;
-        margin-right: 1;
+        color: $text-muted;
     }
     SearchPane #search-status {
         dock: bottom;
@@ -83,12 +79,10 @@ class SearchPane(Vertical):
         with Horizontal(id="search-body"):
             with Vertical(id="search-left"):
                 yield PaperTable(id="search-table")
-                with Horizontal(id="search-interaction"):
-                    yield Button("Like [l]", id="btn-s-like", variant="success")
-                    yield Button("Dislike [d]", id="btn-s-dislike", variant="error")
-                    yield Button("Summarize [s]", id="btn-s-summarize", variant="warning")
-                    yield Button("Translate [t]", id="btn-s-translate")
-                    yield Button("Review [w]", id="btn-s-review", variant="primary")
+                yield Static(
+                    "[dim][l]ike  [d]islike  [s]ummarize  [t]ranslate  [w]review[/dim]",
+                    id="search-key-hints",
+                )
                 yield Static("Enter a search query", id="search-status")
             yield PaperPanel(id="search-panel")
 
@@ -106,26 +100,6 @@ class SearchPane(Vertical):
     def _on_search_clicked(self) -> None:
         query = self.query_one("#search-input", Input).value
         self._run_search(query)
-
-    @on(Button.Pressed, "#btn-s-like")
-    def _on_like_clicked(self) -> None:
-        self.action_like()
-
-    @on(Button.Pressed, "#btn-s-dislike")
-    def _on_dislike_clicked(self) -> None:
-        self.action_dislike()
-
-    @on(Button.Pressed, "#btn-s-summarize")
-    def _on_summarize_clicked(self) -> None:
-        self.action_summarize()
-
-    @on(Button.Pressed, "#btn-s-translate")
-    def _on_translate_clicked(self) -> None:
-        self.action_translate()
-
-    @on(Button.Pressed, "#btn-s-review")
-    def _on_review_clicked(self) -> None:
-        self.action_review()
 
     @on(PaperTable.PaperHighlighted)
     def _on_paper_highlighted(self, event: PaperTable.PaperHighlighted) -> None:

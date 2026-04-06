@@ -170,7 +170,7 @@ class KeywordInterest:
 
     id: int
     keyword: str
-    weight: int = 50
+    weight: int = 3  # 1-5 stars, default 3 (medium importance)
     source: str = "explicit"  # 'explicit' or 'inferred'
 
 

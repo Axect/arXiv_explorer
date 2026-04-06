@@ -90,7 +90,7 @@ class RecommendationEngine:
             text = f"{paper.title} {paper.abstract}".lower()
             for keyword, weight in keyword_weights.items():
                 if keyword in text:
-                    score += keyword_weight * (weight / 100.0)
+                    score += keyword_weight * (weight / 5.0)
 
             # 4. Recency bonus
             days_old = (datetime.now() - paper.published).days
