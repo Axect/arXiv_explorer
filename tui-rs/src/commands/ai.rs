@@ -6,7 +6,7 @@ use crate::app::AppEvent;
 pub fn run_summarize(tx: mpsc::UnboundedSender<AppEvent>, job_id: String, arxiv_id: String) {
     tokio::spawn(async move {
         let output = Command::new("uv")
-            .args(["run", "axp", "show", &arxiv_id, "--summary"])
+            .args(["run", "axp", "show", &arxiv_id, "--summary", "--force"])
             .output()
             .await;
 
@@ -39,7 +39,7 @@ pub fn run_summarize(tx: mpsc::UnboundedSender<AppEvent>, job_id: String, arxiv_
 pub fn run_translate(tx: mpsc::UnboundedSender<AppEvent>, job_id: String, arxiv_id: String) {
     tokio::spawn(async move {
         let output = Command::new("uv")
-            .args(["run", "axp", "translate", &arxiv_id])
+            .args(["run", "axp", "translate", &arxiv_id, "--force"])
             .output()
             .await;
 
@@ -72,7 +72,7 @@ pub fn run_translate(tx: mpsc::UnboundedSender<AppEvent>, job_id: String, arxiv_
 pub fn run_review(tx: mpsc::UnboundedSender<AppEvent>, job_id: String, arxiv_id: String) {
     tokio::spawn(async move {
         let output = Command::new("uv")
-            .args(["run", "axp", "review", &arxiv_id])
+            .args(["run", "axp", "review", &arxiv_id, "--force"])
             .output()
             .await;
 

@@ -91,6 +91,14 @@ impl Database {
         Ok(())
     }
 
+    pub fn set_category_priority(&self, category: &str, priority: i64) -> Result<()> {
+        self.conn.execute(
+            "UPDATE preferred_categories SET priority = ?1 WHERE category = ?2",
+            params![priority, category],
+        )?;
+        Ok(())
+    }
+
     pub fn remove_category(&self, category: &str) -> Result<bool> {
         let n = self.conn.execute(
             "DELETE FROM preferred_categories WHERE category = ?1",
@@ -126,6 +134,15 @@ impl Database {
             "INSERT INTO keyword_interests (keyword, weight, source) VALUES (?1, ?2, 'explicit') \
              ON CONFLICT(keyword) DO UPDATE SET weight = ?2",
             params![keyword.to_lowercase(), w],
+        )?;
+        Ok(())
+    }
+
+    pub fn set_keyword_weight(&self, keyword: &str, weight: i64) -> Result<()> {
+        let w = weight.max(1).min(5);
+        self.conn.execute(
+            "UPDATE keyword_interests SET weight = ?1 WHERE keyword = ?2",
+            params![w, keyword.to_lowercase()],
         )?;
         Ok(())
     }
