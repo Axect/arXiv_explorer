@@ -14,7 +14,7 @@
 - **Learns from you** — The recommendation engine improves every time you like or dislike a paper. No manual tuning required.
 - **No API keys needed** — Fetches papers directly from the public arXiv API. AI features use your locally installed CLI tools.
 - **Fully local** — All data lives in a single SQLite file on your machine. No accounts, no cloud sync, no tracking.
-- **Terminal-native** — A rich CLI and a full TUI, built with Typer and Textual. Works over SSH.
+- **Terminal-native** — A rich CLI (Python/Typer) and a fast TUI (Rust/Ratatui). Works over SSH.
 - **Composable** — Pipe exports to other tools, integrate with arxivterminal or arxiv-doc-builder, or build your own workflow.
 
 ## Features
@@ -25,13 +25,14 @@
 - **AI Summaries** — Generate summaries via configurable AI providers (Gemini, Claude, OpenAI, Ollama, or custom)
 - **Translation** — Translate paper titles and abstracts via AI
 - **Export** — Markdown, JSON, CSV export for papers, lists, and notes
-- **TUI** — Full terminal UI with tabs, detail panels, and keyboard shortcuts
-- **Paper Cache** — SQLite-backed cache eliminates redundant arXiv API calls
+- **TUI** — Full terminal UI (Rust/Ratatui) with tabs, detail panels, and keyboard shortcuts
+- **Paper Cache** — Smart daily fetch caching eliminates redundant arXiv API calls
 
 ## Requirements
 
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/) package manager
+- Rust toolchain (for TUI — `rustup` recommended)
 
 ## Installation
 
@@ -39,6 +40,9 @@
 git clone https://github.com/Axect/arXiv_explorer.git
 cd arXiv_explorer
 uv sync
+
+# Build the TUI (optional but recommended)
+cd tui-rs && cargo build --release && cd ..
 ```
 
 ### Shell Completion
@@ -59,7 +63,7 @@ axp --install-completion zsh
 ```bash
 # 1. Set your research interests
 axp prefs add-category hep-ph --priority 2
-axp prefs add-keyword "deep learning" --weight 1.5
+axp prefs add-keyword "deep learning" --weight 4
 
 # 2. Fetch and rank recent papers
 axp daily --days 7 --limit 10
@@ -72,7 +76,7 @@ See [QUICKSTART.md](QUICKSTART.md) for a full walkthrough.
 
 ## TUI
 
-Launch with `axp tui`. The terminal UI provides a full interactive experience with five tabs:
+Launch with `axp tui` (requires `cargo build --release` in `tui-rs/`). The TUI is a native Rust binary (Ratatui + Crossterm) that communicates with the Python CLI via subprocess.
 
 | Tab | Key | Description |
 |-----|-----|-------------|
@@ -80,9 +84,9 @@ Launch with `axp tui`. The terminal UI provides a full interactive experience wi
 | **Search** | `2` | Search arXiv interactively |
 | **Lists** | `3` | Manage reading lists and track status |
 | **Notes** | `4` | Browse and filter paper notes |
-| **Prefs** | `5` | Manage categories, keywords, and AI settings |
+| **Prefs** | `5` | Manage categories, keywords, authors, weights, and AI settings |
 
-**Key bindings**: `Enter` open detail / `l` like / `d` dislike / `s` summarize / `t` translate / `n` note / `a` add to list / `r` refresh / `q` quit
+**Key bindings**: `Enter` open detail / `l` like / `d` dislike / `s` summarize / `t` translate / `r` review / `b` bookmark / `f` fetch / `j` jobs / `a` add (in Prefs) / `q` quit
 
 ## CLI Reference
 
@@ -143,12 +147,19 @@ axp config test                         # Verify connection
 ## Architecture
 
 ```
-src/arxiv_explorer/
+src/arxiv_explorer/          # Python backend
   core/       # Data models, database schema, configuration
   services/   # Business logic (recommendation, search, summarization, caching)
   cli/        # Typer-based CLI commands
-  tui/        # Textual-based terminal UI (tabs: Daily, Search, Lists, Notes, Prefs)
   utils/      # Display helpers
+
+tui-rs/                      # Rust TUI frontend
+  src/app.rs       # App state, tabs, overlays, jobs
+  src/events.rs    # Key/mouse input handling
+  src/main.rs      # Rendering (Ratatui)
+  src/categories.rs # arXiv category taxonomy
+  src/commands/    # Async subprocess calls to Python CLI
+  src/db/          # Direct SQLite access (read/write)
 ```
 
 **Recommendation** — TF-IDF cosine similarity (50%) + category priority (20%) + keyword matching (10%) + recency bonus (5%).

@@ -194,6 +194,7 @@ impl Database {
     // =========================================================================
 
     /// Get the latest interaction_type string for a paper, or None.
+    #[allow(dead_code)]
     pub fn get_interaction(&self, arxiv_id: &str) -> Result<Option<String>> {
         let mut stmt = self.conn.prepare(
             "SELECT interaction_type FROM paper_interactions \
@@ -282,6 +283,7 @@ impl Database {
         )
     }
 
+    #[allow(dead_code)]
     pub fn create_list(&self, name: &str, parent_id: Option<i64>) -> Result<()> {
         self.conn.execute(
             "INSERT INTO reading_lists (name, parent_id, is_folder, is_system) VALUES (?1, ?2, 0, 0)",
@@ -290,6 +292,7 @@ impl Database {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn create_folder(&self, name: &str) -> Result<()> {
         self.conn.execute(
             "INSERT INTO reading_lists (name, is_folder, is_system) VALUES (?1, 1, 0)",
@@ -316,6 +319,7 @@ impl Database {
     }
 
     /// Rename a list by ID. Rejects system lists. Returns true if renamed.
+    #[allow(dead_code)]
     pub fn rename_list(&self, list_id: i64, new_name: &str) -> Result<bool> {
         let is_system: Option<i64> = self.conn.query_row(
             "SELECT is_system FROM reading_lists WHERE id = ?1",
@@ -400,6 +404,7 @@ impl Database {
         rows.collect()
     }
 
+    #[allow(dead_code)]
     pub fn add_note(&self, arxiv_id: &str, note_type: &str, content: &str) -> Result<()> {
         self.conn.execute(
             "INSERT INTO paper_notes (arxiv_id, note_type, content) VALUES (?1, ?2, ?3)",

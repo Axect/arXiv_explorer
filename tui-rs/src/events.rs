@@ -930,6 +930,7 @@ pub fn load_list_papers_pub(app: &mut App) {
     }
 }
 
+#[allow(dead_code)]
 fn truncate_for_toast(s: &str, max: usize) -> &str {
     if s.len() <= max {
         s
