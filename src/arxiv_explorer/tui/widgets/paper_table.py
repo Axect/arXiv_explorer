@@ -54,6 +54,7 @@ class PaperTable(Vertical):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self._papers: list[RecommendedPaper] = []
+        self._bookmarked: set[str] = set()
 
     def compose(self) -> ComposeResult:
         yield LoadingIndicator(id="pt-loading")
@@ -102,6 +103,33 @@ class PaperTable(Vertical):
 
         if papers:
             self.post_message(self.PaperHighlighted(papers[0]))
+
+    def set_bookmarked(self, arxiv_ids: set[str]) -> None:
+        """Set which papers are bookmarked and refresh the index column."""
+        self._bookmarked = arxiv_ids
+        self._refresh_row_labels()
+
+    def toggle_bookmark(self, arxiv_id: str) -> bool:
+        """Toggle bookmark for a paper.  Returns True if now bookmarked."""
+        if arxiv_id in self._bookmarked:
+            self._bookmarked.discard(arxiv_id)
+            result = False
+        else:
+            self._bookmarked.add(arxiv_id)
+            result = True
+        self._refresh_row_labels()
+        return result
+
+    def _refresh_row_labels(self) -> None:
+        """Update the # column to show a bookmark indicator (✓) when bookmarked."""
+        table = self.query_one("#pt-table", DataTable)
+        for i, rec in enumerate(self._papers):
+            arxiv_id = rec.paper.arxiv_id
+            label = f"✓{i + 1}" if arxiv_id in self._bookmarked else str(i + 1)
+            try:
+                table.update_cell(arxiv_id, "idx", label)
+            except Exception:
+                pass
 
     def _get_paper_by_row_key(self, row_key) -> RecommendedPaper | None:
         key_str = row_key.value if hasattr(row_key, "value") else str(row_key)
