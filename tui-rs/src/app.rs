@@ -235,6 +235,22 @@ pub struct PaperDetailState {
 }
 
 // =============================================================================
+// Input Overlays (Prefs tab)
+// =============================================================================
+
+pub enum OverlayMode {
+    CategoryPicker {
+        search: String,
+        filtered: Vec<usize>, // indices into categories::ARXIV_CATEGORIES
+        selected: usize,
+    },
+    KeywordInput {
+        text: String,
+        weight: i64, // 1-5, default 3
+    },
+}
+
+// =============================================================================
 // Background Jobs
 // =============================================================================
 
@@ -270,6 +286,7 @@ pub struct JobEntry {
     pub job_type: JobType,
     pub status: JobStatus,
     pub started_at: Instant,
+    pub elapsed_secs: Option<u64>, // frozen when job completes
 }
 
 // =============================================================================
@@ -293,6 +310,7 @@ pub struct App {
     pub show_jobs: bool,
     pub jobs: Vec<JobEntry>,
     pub selected_job: usize,
+    pub overlay: Option<OverlayMode>,
 }
 
 impl App {
@@ -344,6 +362,7 @@ impl App {
             show_jobs: false,
             jobs: vec![],
             selected_job: 0,
+            overlay: None,
         })
     }
 
@@ -370,6 +389,7 @@ impl App {
                 // Update job status in the jobs list
                 for job in &mut self.jobs {
                     if job.id == job_id {
+                        job.elapsed_secs = Some(job.started_at.elapsed().as_secs());
                         job.status = JobStatus::Done;
                         break;
                     }
@@ -401,6 +421,7 @@ impl App {
                 // Update job status in the jobs list
                 for job in &mut self.jobs {
                     if job.id == job_id {
+                        job.elapsed_secs = Some(job.started_at.elapsed().as_secs());
                         job.status = JobStatus::Failed(message.clone());
                         break;
                     }
