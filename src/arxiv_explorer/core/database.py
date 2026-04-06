@@ -140,8 +140,7 @@ def init_db(db_path: Path | None = None) -> None:
 
         # Migration: add new columns to reading_lists if they don't exist
         existing_columns = {
-            row[1]
-            for row in conn.execute("PRAGMA table_info(reading_lists)").fetchall()
+            row[1] for row in conn.execute("PRAGMA table_info(reading_lists)").fetchall()
         }
         migrations = [
             (
@@ -161,6 +160,17 @@ def init_db(db_path: Path | None = None) -> None:
             if column not in existing_columns:
                 conn.execute(sql)
 
+        # Create system lists if they don't exist
+        for system_name in ("Like", "Dislike"):
+            exists = conn.execute(
+                "SELECT 1 FROM reading_lists WHERE name = ? AND is_system = 1",
+                (system_name,),
+            ).fetchone()
+            if not exists:
+                conn.execute(
+                    "INSERT INTO reading_lists (name, is_folder, is_system) VALUES (?, 0, 1)",
+                    (system_name,),
+                )
         conn.commit()
 
 
