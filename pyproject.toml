@@ -38,7 +38,6 @@ dependencies = [
     "feedparser>=6.0.0",
     "httpx>=0.25.0",
     "numpy>=1.24.0",
-    "textual>=0.85.0",
 ]
 
 [project.scripts]

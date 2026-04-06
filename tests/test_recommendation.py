@@ -64,8 +64,8 @@ class TestKeywordScoring:
             categories=[],
             published=datetime(2024, 1, 1),
         )
-        low_weight = [KeywordInterest(id=1, keyword="deep learning", weight=0.5)]
-        high_weight = [KeywordInterest(id=1, keyword="deep learning", weight=2.0)]
+        low_weight = [KeywordInterest(id=1, keyword="deep learning", weight=1)]
+        high_weight = [KeywordInterest(id=1, keyword="deep learning", weight=5)]
 
         score_low = engine.score_papers([paper], None, [], low_weight)[0].score
         score_high = engine.score_papers([paper], None, [], high_weight)[0].score

@@ -26,16 +26,44 @@ def daily(
         False, "--detailed", help="Generate detailed summaries (use with --summarize)"
     ),
     limit: int = typer.Option(20, "--limit", "-l", help="Maximum number of results"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
 ):
     """Fetch today's/recent papers (personalized ranking)."""
+    import json
+
     service = PaperService()
     pref_service = PreferenceService()
 
     # Check categories
     categories = pref_service.get_categories()
     if not categories:
+        if json_output:
+            print(json.dumps({"error": "No preferred categories"}))
+            return
         print_error("No preferred categories. Add one with 'axp prefs add-category'.")
         raise typer.Exit(1)
+
+    if json_output:
+        author_papers, scored_papers = service.get_daily_papers(days=days, limit=limit)
+
+        def paper_to_dict(rec):
+            p = rec.paper
+            return {
+                "arxiv_id": p.arxiv_id,
+                "title": p.title,
+                "abstract": p.abstract,
+                "authors": p.authors,
+                "categories": p.categories,
+                "published": str(p.published),
+                "score": rec.score,
+            }
+
+        result = {
+            "author_papers": [paper_to_dict(r) for r in author_papers],
+            "scored_papers": [paper_to_dict(r) for r in scored_papers],
+        }
+        print(json.dumps(result))
+        return
 
     cat_names = ", ".join(c.category for c in categories)
     print_info(f"Categories: {cat_names}")
@@ -46,7 +74,8 @@ def daily(
         console=console,
     ) as progress:
         task = progress.add_task("Fetching papers...", total=None)
-        papers = service.get_daily_papers(days=days, limit=limit)
+        author_papers, scored_papers = service.get_daily_papers(days=days, limit=limit)
+        papers = author_papers + scored_papers
 
     if not papers:
         print_info("No new papers found.")
@@ -98,7 +127,8 @@ def top(
         console=console,
     ) as progress:
         task = progress.add_task("Fetching top papers...", total=None)
-        papers = service.get_daily_papers(days=7, limit=limit)
+        author_papers, scored_papers = service.get_daily_papers(days=7, limit=limit)
+        papers = author_papers + scored_papers
 
     if not papers:
         print_info("No papers to recommend.")
@@ -169,6 +199,7 @@ def show(
         False, "--detailed", "-d", help="Generate detailed summary (longer summary and analysis)"
     ),
     translate: bool = typer.Option(False, "--translate", "-t", help="Include translation"),
+    force: bool = typer.Option(False, "--force", "-f", help="Regenerate (ignore cache)"),
 ):
     """View paper details."""
     service = PaperService()
@@ -205,7 +236,7 @@ def show(
     if summary or detailed:
         summarizer = SummarizationService()
         paper_summary = summarizer.summarize(
-            arxiv_id, paper.title, paper.abstract, detailed=detailed
+            arxiv_id, paper.title, paper.abstract, detailed=detailed, force=force
         )
 
     paper_translation = None
@@ -217,13 +248,14 @@ def show(
             console=console,
         ) as progress:
             progress.add_task("Translating...", total=None)
-            paper_translation = translator.translate(arxiv_id, paper.title, paper.abstract)
+            paper_translation = translator.translate(arxiv_id, paper.title, paper.abstract, force=force)
 
     print_paper_detail(paper, paper_summary, paper_translation)
 
 
 def translate(
     arxiv_id: str = typer.Argument(..., help="arXiv ID"),
+    force: bool = typer.Option(False, "--force", "-f", help="Regenerate (ignore cache)"),
 ):
     """Translate a paper."""
     service = PaperService()
@@ -240,7 +272,7 @@ def translate(
         console=console,
     ) as progress:
         progress.add_task("Translating...", total=None)
-        translation = translator.translate(arxiv_id, paper.title, paper.abstract)
+        translation = translator.translate(arxiv_id, paper.title, paper.abstract, force=force)
 
     if not translation:
         print_error("Translation failed")

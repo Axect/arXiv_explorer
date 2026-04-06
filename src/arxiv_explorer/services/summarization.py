@@ -13,17 +13,18 @@ class SummarizationService:
     """Paper summarization using AI CLI providers."""
 
     def summarize(
-        self, arxiv_id: str, title: str, abstract: str, detailed: bool = False
+        self, arxiv_id: str, title: str, abstract: str, detailed: bool = False, force: bool = False
     ) -> PaperSummary | None:
         """Generate a paper summary."""
-        # Check cache
-        cached = self._get_cached(arxiv_id)
-        if cached:
-            # If detailed summary requested but not cached, regenerate
-            if detailed and not cached.summary_detailed:
-                pass  # Regenerate below
-            else:
-                return cached
+        # Check cache (skip if force regeneration)
+        if not force:
+            cached = self._get_cached(arxiv_id)
+            if cached:
+                # If detailed summary requested but not cached, regenerate
+                if detailed and not cached.summary_detailed:
+                    pass  # Regenerate below
+                else:
+                    return cached
 
         # Generate summary using AI provider
         if detailed:
@@ -38,8 +39,8 @@ Escape backslashes (\\) as double backslashes (\\\\).
 
 Output only JSON in the following format (no other text):
 {{
-    "summary_short": "1-2 sentence core summary",
-    "summary_detailed": "Detailed summary in 3-4 paragraphs. Include: 1) Research background and motivation, 2) Core methodology, 3) Main results, 4) Significance and limitations",
+    "summary_short": "1-2 sentence core summary of the paper",
+    "summary_detailed": "## Context\\nExplain the research background, motivation, and problem being addressed in 2-3 sentences.\\n\\n## Approach\\nDescribe the core methodology, techniques, or theoretical framework proposed in 2-3 sentences.\\n\\n## Results\\nSummarize the main findings, experimental results, or theoretical contributions in 2-3 sentences.\\n\\n## Significance\\nExplain the impact, limitations, and potential future directions in 2-3 sentences.",
     "key_findings": ["Key finding 1", "Key finding 2", "Key finding 3", "Key finding 4", "Key finding 5"]
 }}"""
         else:
@@ -54,7 +55,7 @@ Escape backslashes (\\) as double backslashes (\\\\).
 
 Output only JSON in the following format (no other text):
 {{
-    "summary_short": "1-2 sentence core summary",
+    "summary_short": "2-3 sentence summary covering: what problem is addressed, what approach is used, and what results are achieved",
     "key_findings": ["Key finding 1", "Key finding 2", "Key finding 3"]
 }}"""
 

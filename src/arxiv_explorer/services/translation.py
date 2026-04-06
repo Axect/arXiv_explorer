@@ -23,6 +23,7 @@ class TranslationService:
         title: str,
         abstract: str,
         target_language: Language | None = None,
+        force: bool = False,
     ) -> PaperTranslation | None:
         """Translate paper title and abstract."""
         # Resolve target language from settings if not given
@@ -39,10 +40,11 @@ class TranslationService:
                 translated_abstract=abstract,
             )
 
-        # Check cache
-        cached = self._get_cached(arxiv_id, target_language)
-        if cached:
-            return cached
+        # Check cache (skip if force regeneration)
+        if not force:
+            cached = self._get_cached(arxiv_id, target_language)
+            if cached:
+                return cached
 
         lang_name = _LANG_NAMES.get(target_language, target_language.value)
 

@@ -24,7 +24,6 @@ def tmp_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Config:
 
     # Patch every module that imports get_config at the top level
     monkeypatch.setattr("arxiv_explorer.core.database.get_config", _get_config)
-    monkeypatch.setattr("arxiv_explorer.services.recommendation.get_config", _get_config)
 
     # Reset the global config singleton so it doesn't leak between tests
     monkeypatch.setattr("arxiv_explorer.core.config._config", config)
@@ -90,6 +89,6 @@ def sample_categories() -> list[PreferredCategory]:
 def sample_keywords() -> list[KeywordInterest]:
     """Sample keywords for scoring tests."""
     return [
-        KeywordInterest(id=1, keyword="deep learning", weight=1.5),
-        KeywordInterest(id=2, keyword="quantum", weight=1.0),
+        KeywordInterest(id=1, keyword="deep learning", weight=4),
+        KeywordInterest(id=2, keyword="quantum", weight=3),
     ]

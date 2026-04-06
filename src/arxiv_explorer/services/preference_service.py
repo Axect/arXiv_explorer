@@ -4,10 +4,14 @@ from datetime import datetime
 
 from ..core.database import get_connection
 from ..core.models import InteractionType, KeywordInterest, PreferredCategory
+from .reading_list_service import ReadingListService
 
 
 class PreferenceService:
     """User preference management."""
+
+    def __init__(self) -> None:
+        self._reading_lists = ReadingListService()
 
     # === Category management ===
 
@@ -61,6 +65,19 @@ class PreferenceService:
 
     # === Paper interactions ===
 
+    def _sync_to_lists(self, arxiv_id: str, like: bool) -> None:
+        """Sync interaction to Like/Dislike reading lists."""
+        like_list = self._reading_lists.get_list("Like")
+        dislike_list = self._reading_lists.get_list("Dislike")
+        if not like_list or not dislike_list:
+            return
+        if like:
+            self._reading_lists.remove_paper_from_list(dislike_list.id, arxiv_id)
+            self._reading_lists.add_paper_to_list(like_list.id, arxiv_id)
+        else:
+            self._reading_lists.remove_paper_from_list(like_list.id, arxiv_id)
+            self._reading_lists.add_paper_to_list(dislike_list.id, arxiv_id)
+
     def mark_interesting(self, arxiv_id: str) -> None:
         """Mark a paper as interesting."""
         with get_connection() as conn:
@@ -77,6 +94,7 @@ class PreferenceService:
                 (arxiv_id, InteractionType.INTERESTING.value),
             )
             conn.commit()
+        self._sync_to_lists(arxiv_id, like=True)
 
     def mark_not_interesting(self, arxiv_id: str) -> None:
         """Mark a paper as not interesting."""
@@ -94,6 +112,7 @@ class PreferenceService:
                 (arxiv_id, InteractionType.NOT_INTERESTING.value),
             )
             conn.commit()
+        self._sync_to_lists(arxiv_id, like=False)
 
     def get_interesting_papers(self) -> list[str]:
         """Get the list of paper IDs marked as interesting."""
@@ -119,8 +138,9 @@ class PreferenceService:
 
     # === Keyword interests ===
 
-    def add_keyword(self, keyword: str, weight: float = 1.0) -> None:
-        """Add a keyword interest."""
+    def add_keyword(self, keyword: str, weight: int = 3) -> None:
+        """Add a keyword interest. Weight is 1-5 stars (default 3)."""
+        weight = max(1, min(5, weight))
         with get_connection() as conn:
             conn.execute(
                 """INSERT INTO keyword_interests (keyword, weight, source)
@@ -148,7 +168,7 @@ class PreferenceService:
                 KeywordInterest(
                     id=row["id"],
                     keyword=row["keyword"],
-                    weight=row["weight"],
+                    weight=int(row["weight"]),
                     source=row["source"],
                 )
                 for row in rows

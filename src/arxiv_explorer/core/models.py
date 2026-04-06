@@ -38,6 +38,19 @@ class Language(str, Enum):
     KO = "ko"
 
 
+class JobType(Enum):
+    SUMMARIZE = "summarize"
+    TRANSLATE = "translate"
+    REVIEW = "review"
+
+
+class JobStatus(Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 class ReviewSectionType(str, Enum):
     EXECUTIVE_SUMMARY = "executive_summary"
     KEY_CONTRIBUTIONS = "key_contributions"
@@ -121,8 +134,11 @@ class ReadingList:
 
     id: int
     name: str
-    description: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.now)
+    description: Optional[str]
+    parent_id: Optional[int]
+    is_folder: bool
+    is_system: bool
+    created_at: datetime
 
 
 @dataclass
@@ -154,8 +170,17 @@ class KeywordInterest:
 
     id: int
     keyword: str
-    weight: float = 1.0
+    weight: int = 3  # 1-5 stars, default 3 (medium importance)
     source: str = "explicit"  # 'explicit' or 'inferred'
+
+
+@dataclass
+class PreferredAuthor:
+    """Preferred author."""
+
+    id: int
+    name: str
+    added_at: datetime = field(default_factory=datetime.now)
 
 
 @dataclass
@@ -200,3 +225,17 @@ class RecommendedPaper:
     paper: Paper
     score: float
     summary: Optional[PaperSummary] = None
+
+
+@dataclass
+class Job:
+    """Background job tracking entry."""
+
+    id: str
+    paper_id: str
+    paper_title: str
+    job_type: JobType
+    status: JobStatus
+    started_at: datetime
+    completed_at: datetime | None = None
+    error: str | None = None

@@ -1,0 +1,20 @@
+[package]
+name = "axp-tui"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "axp-tui"
+path = "src/main.rs"
+
+[dependencies]
+ratatui = "0.29"
+crossterm = "0.28"
+tokio = { version = "1", features = ["full"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs = "6"
+unicode-width = "0.2"
+chrono = "0.4"
+anyhow = "1"

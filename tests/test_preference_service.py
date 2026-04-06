@@ -89,12 +89,12 @@ class TestKeywordManagement:
 
     def test_add_keyword(self, tmp_config: Config):
         service = PreferenceService()
-        service.add_keyword("machine learning", weight=1.5)
+        service.add_keyword("machine learning", weight=4)
 
         keywords = service.get_keywords()
         assert len(keywords) == 1
         assert keywords[0].keyword == "machine learning"
-        assert keywords[0].weight == 1.5
+        assert keywords[0].weight == 4
 
     def test_keyword_lowercased(self, tmp_config: Config):
         """Keywords are stored in lowercase."""
@@ -107,18 +107,18 @@ class TestKeywordManagement:
     def test_add_keyword_update_weight(self, tmp_config: Config):
         """Adding the same keyword again updates its weight."""
         service = PreferenceService()
-        service.add_keyword("quantum", weight=1.0)
-        service.add_keyword("quantum", weight=2.5)
+        service.add_keyword("quantum", weight=2)
+        service.add_keyword("quantum", weight=5)
 
         keywords = service.get_keywords()
         assert len(keywords) == 1
-        assert keywords[0].weight == 2.5
+        assert keywords[0].weight == 5
 
     def test_get_keywords_ordered_by_weight(self, tmp_config: Config):
         service = PreferenceService()
-        service.add_keyword("low", weight=0.5)
-        service.add_keyword("high", weight=2.0)
-        service.add_keyword("mid", weight=1.0)
+        service.add_keyword("low", weight=1)
+        service.add_keyword("high", weight=5)
+        service.add_keyword("mid", weight=3)
 
         keywords = service.get_keywords()
         weights = [k.weight for k in keywords]

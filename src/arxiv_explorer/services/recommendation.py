@@ -6,8 +6,8 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from ..core.config import get_config
 from ..core.models import KeywordInterest, Paper, PreferredCategory, RecommendedPaper
+from .settings_service import SettingsService
 
 
 class RecommendationEngine:
@@ -23,6 +23,7 @@ class RecommendationEngine:
         self._is_fitted = False
         self._paper_vectors = None
         self._paper_ids: list[str] = []
+        self._settings = SettingsService()
 
     def build_user_profile(
         self,
@@ -54,7 +55,11 @@ class RecommendationEngine:
         keywords: list[KeywordInterest],
     ) -> list[RecommendedPaper]:
         """Assign recommendation scores to papers."""
-        config = get_config()
+        weights = self._settings.get_weights()
+        content_weight = weights["content"] / 100.0
+        category_weight = weights["category"] / 100.0
+        keyword_weight = weights["keyword"] / 100.0
+        recency_weight = weights["recency"] / 100.0
 
         # Category/keyword lookup
         category_priorities = {c.category: c.priority for c in preferred_categories}
@@ -71,27 +76,27 @@ class RecommendationEngine:
                 doc = f"{paper.title} {paper.abstract}"
                 paper_vector = self.vectorizer.transform([doc])
                 content_sim = cosine_similarity(user_profile.reshape(1, -1), paper_vector)[0, 0]
-                score += content_sim * config.content_weight
+                score += content_sim * content_weight
 
             # 2. Category matching
             for cat in paper.categories:
                 if cat in category_priorities:
                     priority = category_priorities[cat]
                     normalized = priority / max_priority if max_priority > 0 else 1
-                    score += config.category_weight * normalized
+                    score += category_weight * normalized
                     break  # Use only the first match
 
             # 3. Keyword matching
             text = f"{paper.title} {paper.abstract}".lower()
             for keyword, weight in keyword_weights.items():
                 if keyword in text:
-                    score += config.keyword_weight * weight
+                    score += keyword_weight * (weight / 5.0)
 
             # 4. Recency bonus
             days_old = (datetime.now() - paper.published).days
             if days_old < 30:
                 recency_factor = 1 - (days_old / 30)
-                score += config.recency_weight * recency_factor
+                score += recency_weight * recency_factor
 
             results.append(RecommendedPaper(paper=paper, score=score))
 

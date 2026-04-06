@@ -20,3 +20,6 @@ wheels/
 
 # Paper build outputs (arxiv-doc-builder)
 [0-9][0-9][0-9][0-9].[0-9]*/
+
+# Local design docs (superpowers plugin)
+docs/superpowers/
