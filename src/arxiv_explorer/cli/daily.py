@@ -26,16 +26,44 @@ def daily(
         False, "--detailed", help="Generate detailed summaries (use with --summarize)"
     ),
     limit: int = typer.Option(20, "--limit", "-l", help="Maximum number of results"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
 ):
     """Fetch today's/recent papers (personalized ranking)."""
+    import json
+
     service = PaperService()
     pref_service = PreferenceService()
 
     # Check categories
     categories = pref_service.get_categories()
     if not categories:
+        if json_output:
+            print(json.dumps({"error": "No preferred categories"}))
+            return
         print_error("No preferred categories. Add one with 'axp prefs add-category'.")
         raise typer.Exit(1)
+
+    if json_output:
+        author_papers, scored_papers = service.get_daily_papers(days=days, limit=limit)
+
+        def paper_to_dict(rec):
+            p = rec.paper
+            return {
+                "arxiv_id": p.arxiv_id,
+                "title": p.title,
+                "abstract": p.abstract,
+                "authors": p.authors,
+                "categories": p.categories,
+                "published": str(p.published),
+                "score": rec.score,
+            }
+
+        result = {
+            "author_papers": [paper_to_dict(r) for r in author_papers],
+            "scored_papers": [paper_to_dict(r) for r in scored_papers],
+        }
+        print(json.dumps(result))
+        return
 
     cat_names = ", ".join(c.category for c in categories)
     print_info(f"Categories: {cat_names}")

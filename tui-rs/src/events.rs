@@ -129,12 +129,11 @@ pub fn handle_daily_key(app: &mut App, key: KeyCode) {
         KeyCode::Char('r') | KeyCode::Char('R') => {
             if !app.daily.loading {
                 app.daily.loading = true;
-                // Placeholder — Task 4 will wire up the actual fetch command
-                let _ = app.event_tx.send(crate::app::AppEvent::Toast {
-                    message: "Fetching papers… (not implemented yet)".to_string(),
-                    is_error: false,
-                });
-                app.daily.loading = false;
+                crate::commands::fetch::fetch_daily(
+                    app.event_tx.clone(),
+                    app.daily.days,
+                    app.daily.limit,
+                );
             }
         }
         _ => {}
@@ -146,6 +145,28 @@ pub fn handle_daily_key(app: &mut App, key: KeyCode) {
 // =============================================================================
 
 pub fn handle_search_key(app: &mut App, key: KeyCode) {
+    if app.search.editing {
+        match key {
+            KeyCode::Enter => {
+                app.search.editing = false;
+                app.search.loading = true;
+                let query = app.search.query.clone();
+                crate::commands::fetch::search_papers(app.event_tx.clone(), &query);
+            }
+            KeyCode::Esc => {
+                app.search.editing = false;
+            }
+            KeyCode::Backspace => {
+                app.search.query.pop();
+            }
+            KeyCode::Char(c) => {
+                app.search.query.push(c);
+            }
+            _ => {}
+        }
+        return;
+    }
+
     let total = app.search.results.len();
     match key {
         KeyCode::Down | KeyCode::Char('j') => {
@@ -157,6 +178,9 @@ pub fn handle_search_key(app: &mut App, key: KeyCode) {
             if app.search.selected > 0 {
                 app.search.selected -= 1;
             }
+        }
+        KeyCode::Char('/') => {
+            app.search.editing = true;
         }
         _ => {}
     }

@@ -12,6 +12,7 @@ use ratatui::{
 };
 
 mod app;
+mod commands;
 mod db;
 mod events;
 

@@ -123,6 +123,7 @@ pub struct SearchState {
     pub results: Vec<ScoredPaper>,
     pub selected: usize,
     pub loading: bool,
+    pub editing: bool,
 }
 
 impl Default for SearchState {
@@ -132,6 +133,7 @@ impl Default for SearchState {
             results: vec![],
             selected: 0,
             loading: false,
+            editing: false,
         }
     }
 }
