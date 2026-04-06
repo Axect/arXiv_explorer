@@ -2,7 +2,7 @@ use std::io;
 use std::time::Duration;
 
 use crossterm::{
-    event::{self, Event, KeyEventKind},
+    event::{self, Event, EnableMouseCapture, DisableMouseCapture, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -16,7 +16,7 @@ mod commands;
 mod db;
 mod events;
 
-use app::{App, Tab};
+use app::{App, ConfirmAction, Tab};
 
 // =============================================================================
 // Catppuccin Mocha palette
@@ -40,7 +40,7 @@ async fn main() -> io::Result<()> {
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
@@ -56,7 +56,7 @@ async fn main() -> io::Result<()> {
 
     // Restore terminal
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
 
     if let Err(e) = res {
         eprintln!("Error: {e}");
@@ -80,12 +80,18 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
             // Crossterm input events (blocking poll in a spawn_blocking)
             has_event = tokio::task::spawn_blocking(move || event::poll(timeout)) => {
                 if let Ok(Ok(true)) = has_event {
-                    if let Ok(Event::Key(key)) = event::read() {
-                        if key.kind == KeyEventKind::Press {
-                            if events::handle_key(&mut app, key.code) {
-                                return Ok(());
+                    match event::read() {
+                        Ok(Event::Key(key)) => {
+                            if key.kind == KeyEventKind::Press {
+                                if events::handle_key(&mut app, key.code) {
+                                    return Ok(());
+                                }
                             }
                         }
+                        Ok(Event::Mouse(mouse)) => {
+                            events::handle_mouse(&mut app, mouse);
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -137,6 +143,11 @@ fn render(f: &mut Frame, app: &mut App) {
     // Jobs overlay on top of everything except toasts
     if app.show_jobs {
         render_jobs_panel(f, app);
+    }
+
+    // Confirmation dialog on top of everything except toasts
+    if app.confirm_action.is_some() {
+        render_confirm_dialog(f, app);
     }
 
     render_toasts(f, app, area);
@@ -204,7 +215,7 @@ fn render_key_hints(f: &mut Frame, app: &App, area: Rect) {
         Tab::Search => " [/] search  [l]ike  [d]islike  [↑↓] navigate  [j]obs  [q]uit",
         Tab::Lists => " [Tab] focus  [n]ew  [f]older  [e]dit  [Del]ete  [s]ort  [r]eload  [j]obs  [q]uit",
         Tab::Notes => " [↑↓] navigate  [Del]ete  [r]eload  [j]obs  [q]uit",
-        Tab::Prefs => " [Tab] section  [↑↓] select  [←→] weights  [p]rovider  lan[g]  [Del]ete  [r]eload  [j]obs  [q]uit",
+        Tab::Prefs => " [Tab] section  [↑↓] select  [←→] adjust  [Del]ete  [r]eload  [j]obs  [q]uit",
     };
     let p = Paragraph::new(hints)
         .style(Style::default().fg(TEXT_DIM).bg(SURFACE));
@@ -1083,19 +1094,37 @@ fn render_prefs(f: &mut Frame, app: &App, area: Rect) {
         let block = Block::default()
             .title(" Config ")
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(TEXT_DIM))
+            .border_style(sec_border(4))
             .style(Style::default().bg(BG));
         let inner = block.inner(bot_cols[1]);
         f.render_widget(block, bot_cols[1]);
 
+        let focused = app.prefs.focus_section == 4;
+        let sel = app.prefs.section_selected[4];
+
+        let provider_style = if focused && sel == 0 {
+            Style::default().fg(ACCENT).bold()
+        } else {
+            Style::default().fg(TEXT)
+        };
+        let language_style = if focused && sel == 1 {
+            Style::default().fg(ACCENT).bold()
+        } else {
+            Style::default().fg(TEXT)
+        };
+        let provider_prefix = if focused && sel == 0 { "► " } else { "  " };
+        let language_prefix = if focused && sel == 1 { "► " } else { "  " };
+
         let lines = vec![
             Line::from(vec![
+                Span::styled(provider_prefix, provider_style),
                 Span::styled("Provider: ", Style::default().fg(ACCENT).bold()),
-                Span::styled(app.prefs.provider.clone(), Style::default().fg(TEXT)),
+                Span::styled(app.prefs.provider.clone(), provider_style),
             ]),
             Line::from(vec![
+                Span::styled(language_prefix, language_style),
                 Span::styled("Language: ", Style::default().fg(ACCENT).bold()),
-                Span::styled(app.prefs.language.clone(), Style::default().fg(TEXT)),
+                Span::styled(app.prefs.language.clone(), language_style),
             ]),
         ];
         f.render_widget(Paragraph::new(lines).style(Style::default().bg(BG)), inner);
@@ -1243,6 +1272,46 @@ fn render_paper_detail(f: &mut Frame, app: &App) {
     )
     .style(Style::default().fg(TEXT_DIM).bg(SURFACE));
     f.render_widget(hints, chunks[1]);
+}
+
+// =============================================================================
+// Confirmation Dialog Overlay
+// =============================================================================
+
+fn render_confirm_dialog(f: &mut Frame, app: &App) {
+    let area = f.area();
+    let w: u16 = 36;
+    let h: u16 = 5;
+    let x = (area.width.saturating_sub(w)) / 2;
+    let y = (area.height.saturating_sub(h)) / 2;
+    let overlay = Rect::new(x, y, w, h);
+
+    f.render_widget(Clear, overlay);
+
+    let (title, body) = match &app.confirm_action {
+        Some(ConfirmAction::RegenerateSummary) => (
+            " Regenerate? ",
+            "Summary already exists.\nRegenerate? [y]es / [n]o",
+        ),
+        Some(ConfirmAction::RegenerateTranslation) => (
+            " Regenerate? ",
+            "Translation already exists.\nRegenerate? [y]es / [n]o",
+        ),
+        None => return,
+    };
+
+    let block = Block::default()
+        .title(title)
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(ACCENT))
+        .style(Style::default().bg(SURFACE));
+    let inner = block.inner(overlay);
+    f.render_widget(block, overlay);
+
+    let p = Paragraph::new(body)
+        .style(Style::default().fg(TEXT).bg(SURFACE))
+        .wrap(Wrap { trim: true });
+    f.render_widget(p, inner);
 }
 
 // =============================================================================

@@ -192,8 +192,8 @@ pub struct PrefsState {
     pub provider: String,
     pub language: String,
     pub selected: usize,           // cursor in weights section
-    pub focus_section: usize,      // 0=cats, 1=keywords, 2=authors, 3=weights
-    pub section_selected: [usize; 4], // cursor per section
+    pub focus_section: usize,      // 0=cats, 1=keywords, 2=authors, 3=weights, 4=config
+    pub section_selected: [usize; 5], // cursor per section (section 4: 0=provider, 1=language)
 }
 
 impl Default for PrefsState {
@@ -207,9 +207,19 @@ impl Default for PrefsState {
             language: "en".to_string(),
             selected: 0,
             focus_section: 0,
-            section_selected: [0; 4],
+            section_selected: [0; 5],
         }
     }
+}
+
+// =============================================================================
+// Confirmation Dialog
+// =============================================================================
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConfirmAction {
+    RegenerateSummary,
+    RegenerateTranslation,
 }
 
 // =============================================================================
@@ -276,6 +286,7 @@ pub struct App {
     pub prefs: PrefsState,
     pub toasts: Vec<Toast>,
     pub detail: Option<PaperDetailState>,
+    pub confirm_action: Option<ConfirmAction>,
     pub event_tx: mpsc::UnboundedSender<AppEvent>,
     pub event_rx: mpsc::UnboundedReceiver<AppEvent>,
     pub show_jobs: bool,
@@ -322,10 +333,11 @@ impl App {
                 language,
                 selected: 0,
                 focus_section: 0,
-                section_selected: [0; 4],
+                section_selected: [0; 5],
             },
             toasts: vec![],
             detail: None,
+            confirm_action: None,
             event_tx,
             event_rx,
             show_jobs: false,

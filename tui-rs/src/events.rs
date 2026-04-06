@@ -1,6 +1,6 @@
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, MouseEvent, MouseEventKind};
 
-use crate::app::{App, Tab};
+use crate::app::{App, ConfirmAction, Tab};
 
 // =============================================================================
 // Global key handler
@@ -8,6 +8,12 @@ use crate::app::{App, Tab};
 
 /// Returns true if the app should quit.
 pub fn handle_key(app: &mut App, key: KeyCode) -> bool {
+    // Confirmation dialog takes highest priority
+    if app.confirm_action.is_some() {
+        handle_confirm_key(app, key);
+        return false;
+    }
+
     // Paper detail overlay takes priority over all other handlers
     if app.detail.is_some() {
         handle_detail_key(app, key);
@@ -46,7 +52,7 @@ pub fn handle_key(app: &mut App, key: KeyCode) -> bool {
                 })
                 .collect();
             // Load papers for the currently selected list (if any)
-            load_list_papers(app);
+            load_list_papers_pub(app);
         }
         KeyCode::Char('4') => {
             app.active_tab = Tab::Notes;
@@ -102,6 +108,194 @@ pub fn handle_jobs_key(app: &mut App, key: KeyCode) {
 }
 
 // =============================================================================
+// Confirmation Dialog
+// =============================================================================
+
+pub fn handle_confirm_key(app: &mut App, key: KeyCode) {
+    let action = match app.confirm_action.take() {
+        Some(a) => a,
+        None => return,
+    };
+    match key {
+        KeyCode::Char('y') | KeyCode::Char('Y') => {
+            match action {
+                ConfirmAction::RegenerateSummary => trigger_summarize(app),
+                ConfirmAction::RegenerateTranslation => trigger_translate(app),
+            }
+        }
+        _ => {
+            // n, Esc, or any other key — cancel
+        }
+    }
+    // confirm_action was already taken above; ensure it's None
+}
+
+// =============================================================================
+// AI trigger helpers
+// =============================================================================
+
+fn trigger_summarize(app: &mut App) {
+    if let Some(detail) = &app.detail {
+        let arxiv_id = detail.paper.arxiv_id.clone();
+        let title = detail.paper.title.clone();
+        let job_id = format!("sum-{}", &arxiv_id);
+        let tx = app.event_tx.clone();
+        app.push_toast("Summarizing...", false);
+        app.jobs.push(crate::app::JobEntry {
+            id: job_id.clone(),
+            paper_id: arxiv_id.clone(),
+            paper_title: title,
+            job_type: crate::app::JobType::Summarize,
+            status: crate::app::JobStatus::Running,
+            started_at: std::time::Instant::now(),
+        });
+        crate::commands::ai::run_summarize(tx, job_id, arxiv_id);
+    }
+}
+
+fn trigger_translate(app: &mut App) {
+    if let Some(detail) = &app.detail {
+        let arxiv_id = detail.paper.arxiv_id.clone();
+        let title = detail.paper.title.clone();
+        let job_id = format!("trans-{}", &arxiv_id);
+        let tx = app.event_tx.clone();
+        app.push_toast("Translating...", false);
+        app.jobs.push(crate::app::JobEntry {
+            id: job_id.clone(),
+            paper_id: arxiv_id.clone(),
+            paper_title: title,
+            job_type: crate::app::JobType::Translate,
+            status: crate::app::JobStatus::Running,
+            started_at: std::time::Instant::now(),
+        });
+        crate::commands::ai::run_translate(tx, job_id, arxiv_id);
+    }
+}
+
+// =============================================================================
+// Mouse handler
+// =============================================================================
+
+pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
+    // If detail overlay is open, only scroll the overlay
+    if app.detail.is_some() {
+        match mouse.kind {
+            MouseEventKind::ScrollUp => {
+                if let Some(detail) = &mut app.detail {
+                    if detail.scroll > 0 {
+                        detail.scroll -= 1;
+                    }
+                }
+            }
+            MouseEventKind::ScrollDown => {
+                if let Some(detail) = &mut app.detail {
+                    detail.scroll += 1;
+                }
+            }
+            _ => {}
+        }
+        return;
+    }
+
+    // If jobs panel is open, scroll the jobs list
+    if app.show_jobs {
+        match mouse.kind {
+            MouseEventKind::ScrollUp => {
+                if app.selected_job > 0 {
+                    app.selected_job -= 1;
+                }
+            }
+            MouseEventKind::ScrollDown => {
+                if app.selected_job + 1 < app.jobs.len() {
+                    app.selected_job += 1;
+                }
+            }
+            _ => {}
+        }
+        return;
+    }
+
+    // Otherwise, scroll the active tab content
+    match mouse.kind {
+        MouseEventKind::ScrollUp => {
+            match app.active_tab {
+                Tab::Daily => {
+                    if app.daily.focus_detail {
+                        if app.daily.detail_scroll > 0 {
+                            app.daily.detail_scroll -= 1;
+                        }
+                    } else if app.daily.selected > 0 {
+                        app.daily.selected -= 1;
+                    }
+                }
+                Tab::Search => {
+                    if app.search.selected > 0 {
+                        app.search.selected -= 1;
+                    }
+                }
+                Tab::Lists => {
+                    if app.lists.focus_left {
+                        if app.lists.selected_list > 0 {
+                            app.lists.selected_list -= 1;
+                            load_list_papers_pub(app);
+                        }
+                    } else if app.lists.selected_paper > 0 {
+                        app.lists.selected_paper -= 1;
+                    }
+                }
+                Tab::Notes => {
+                    if app.notes.selected > 0 {
+                        app.notes.selected -= 1;
+                    }
+                }
+                Tab::Prefs => {}
+            }
+        }
+        MouseEventKind::ScrollDown => {
+            match app.active_tab {
+                Tab::Daily => {
+                    if app.daily.focus_detail {
+                        app.daily.detail_scroll += 1;
+                    } else {
+                        let total = app.daily.author_papers.len() + app.daily.scored_papers.len();
+                        if total > 0 && app.daily.selected + 1 < total {
+                            app.daily.selected += 1;
+                        }
+                    }
+                }
+                Tab::Search => {
+                    if app.search.selected + 1 < app.search.results.len() {
+                        app.search.selected += 1;
+                    }
+                }
+                Tab::Lists => {
+                    if app.lists.focus_left {
+                        let max = app.lists.items.len().saturating_sub(1);
+                        if app.lists.selected_list < max {
+                            app.lists.selected_list += 1;
+                            load_list_papers_pub(app);
+                        }
+                    } else {
+                        let max = app.lists.papers.len().saturating_sub(1);
+                        if app.lists.selected_paper < max {
+                            app.lists.selected_paper += 1;
+                        }
+                    }
+                }
+                Tab::Notes => {
+                    let max = app.notes.notes.len().saturating_sub(1);
+                    if app.notes.selected < max {
+                        app.notes.selected += 1;
+                    }
+                }
+                Tab::Prefs => {}
+            }
+        }
+        _ => {}
+    }
+}
+
+// =============================================================================
 // Paper Detail Overlay
 // =============================================================================
 
@@ -122,38 +316,20 @@ pub fn handle_detail_key(app: &mut App, key: KeyCode) {
         }
         KeyCode::Char('s') => {
             if let Some(detail) = &app.detail {
-                let arxiv_id = detail.paper.arxiv_id.clone();
-                let title = detail.paper.title.clone();
-                let job_id = format!("sum-{}", &arxiv_id);
-                let tx = app.event_tx.clone();
-                app.push_toast("Summarizing...", false);
-                app.jobs.push(crate::app::JobEntry {
-                    id: job_id.clone(),
-                    paper_id: arxiv_id.clone(),
-                    paper_title: title,
-                    job_type: crate::app::JobType::Summarize,
-                    status: crate::app::JobStatus::Running,
-                    started_at: std::time::Instant::now(),
-                });
-                crate::commands::ai::run_summarize(tx, job_id, arxiv_id);
+                if detail.summary.is_some() {
+                    app.confirm_action = Some(ConfirmAction::RegenerateSummary);
+                } else {
+                    trigger_summarize(app);
+                }
             }
         }
         KeyCode::Char('t') => {
             if let Some(detail) = &app.detail {
-                let arxiv_id = detail.paper.arxiv_id.clone();
-                let title = detail.paper.title.clone();
-                let job_id = format!("trans-{}", &arxiv_id);
-                let tx = app.event_tx.clone();
-                app.push_toast("Translating...", false);
-                app.jobs.push(crate::app::JobEntry {
-                    id: job_id.clone(),
-                    paper_id: arxiv_id.clone(),
-                    paper_title: title,
-                    job_type: crate::app::JobType::Translate,
-                    status: crate::app::JobStatus::Running,
-                    started_at: std::time::Instant::now(),
-                });
-                crate::commands::ai::run_translate(tx, job_id, arxiv_id);
+                if detail.translation.is_some() {
+                    app.confirm_action = Some(ConfirmAction::RegenerateTranslation);
+                } else {
+                    trigger_translate(app);
+                }
             }
         }
         KeyCode::Char('r') => {
@@ -469,14 +645,14 @@ pub fn handle_lists_key(app: &mut App, key: KeyCode) {
                     (l, count)
                 })
                 .collect();
-            load_list_papers(app);
+            load_list_papers_pub(app);
         }
         KeyCode::Down | KeyCode::Char('K') => {
             if app.lists.focus_left {
                 let max = app.lists.items.len().saturating_sub(1);
                 if app.lists.selected_list < max {
                     app.lists.selected_list += 1;
-                    load_list_papers(app);
+                    load_list_papers_pub(app);
                 }
             } else {
                 let max = app.lists.papers.len().saturating_sub(1);
@@ -489,7 +665,7 @@ pub fn handle_lists_key(app: &mut App, key: KeyCode) {
             if app.lists.focus_left {
                 if app.lists.selected_list > 0 {
                     app.lists.selected_list -= 1;
-                    load_list_papers(app);
+                    load_list_papers_pub(app);
                 }
             } else if app.lists.selected_paper > 0 {
                 app.lists.selected_paper -= 1;
@@ -576,7 +752,7 @@ pub fn handle_lists_key(app: &mut App, key: KeyCode) {
 }
 
 /// Load papers for the currently selected list and cache their details.
-fn load_list_papers(app: &mut App) {
+pub fn load_list_papers_pub(app: &mut App) {
     if let Some((list, _)) = app.lists.items.get(app.lists.selected_list) {
         let list_id = list.id;
         let papers = app.db.get_list_papers(list_id).unwrap_or_default();
@@ -656,7 +832,7 @@ pub fn handle_notes_key(app: &mut App, key: KeyCode) {
 pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
     match key {
         KeyCode::Tab => {
-            app.prefs.focus_section = (app.prefs.focus_section + 1) % 4;
+            app.prefs.focus_section = (app.prefs.focus_section + 1) % 5;
         }
         KeyCode::Down | KeyCode::Char('K') => {
             let sec = app.prefs.focus_section;
@@ -665,6 +841,7 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                 1 => app.prefs.keywords.len(),
                 2 => app.prefs.authors.len(),
                 3 => 4,
+                4 => 2, // provider (0) and language (1)
                 _ => 1,
             };
             if max > 0 && app.prefs.section_selected[sec] + 1 < max {
@@ -684,21 +861,35 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
             }
         }
         KeyCode::Left | KeyCode::Char('h') => {
-            if app.prefs.focus_section == 3 {
-                let idx = app.prefs.selected;
-                let new_weights =
-                    adjust_weights(idx, app.prefs.weights[idx] - 5, app.prefs.weights);
-                app.prefs.weights = new_weights;
-                let _ = app.db.set_weights(new_weights);
+            match app.prefs.focus_section {
+                3 => {
+                    let idx = app.prefs.selected;
+                    let new_weights =
+                        adjust_weights(idx, app.prefs.weights[idx] - 5, app.prefs.weights);
+                    app.prefs.weights = new_weights;
+                    let _ = app.db.set_weights(new_weights);
+                }
+                4 => {
+                    // cycle backwards through config options
+                    cycle_config_option(app, false);
+                }
+                _ => {}
             }
         }
         KeyCode::Right | KeyCode::Char('l') => {
-            if app.prefs.focus_section == 3 {
-                let idx = app.prefs.selected;
-                let new_weights =
-                    adjust_weights(idx, app.prefs.weights[idx] + 5, app.prefs.weights);
-                app.prefs.weights = new_weights;
-                let _ = app.db.set_weights(new_weights);
+            match app.prefs.focus_section {
+                3 => {
+                    let idx = app.prefs.selected;
+                    let new_weights =
+                        adjust_weights(idx, app.prefs.weights[idx] + 5, app.prefs.weights);
+                    app.prefs.weights = new_weights;
+                    let _ = app.db.set_weights(new_weights);
+                }
+                4 => {
+                    // cycle forwards through config options
+                    cycle_config_option(app, true);
+                }
+                _ => {}
             }
         }
         KeyCode::Delete => {
@@ -751,18 +942,35 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                 .get_setting("language", "en")
                 .unwrap_or_else(|_| "en".to_string());
         }
-        KeyCode::Char('p') => {
+        _ => {}
+    }
+}
+
+/// Cycle through config options for the currently selected config item (section 4).
+/// `forward=true` goes to the next option, `forward=false` goes to the previous.
+fn cycle_config_option(app: &mut App, forward: bool) {
+    let item = app.prefs.section_selected[4]; // 0=provider, 1=language
+    match item {
+        0 => {
             let providers = ["gemini", "claude", "ollama", "openai", "opencode", "custom"];
             let current = providers.iter().position(|&p| p == app.prefs.provider).unwrap_or(0);
-            let next = (current + 1) % providers.len();
+            let next = if forward {
+                (current + 1) % providers.len()
+            } else {
+                if current == 0 { providers.len() - 1 } else { current - 1 }
+            };
             app.prefs.provider = providers[next].to_string();
             let _ = app.db.set_setting("ai_provider", providers[next]);
             app.push_toast(format!("Provider: {}", providers[next]), false);
         }
-        KeyCode::Char('g') => {
+        1 => {
             let langs = ["en", "ko"];
             let current = langs.iter().position(|&l| l == app.prefs.language).unwrap_or(0);
-            let next = (current + 1) % langs.len();
+            let next = if forward {
+                (current + 1) % langs.len()
+            } else {
+                if current == 0 { langs.len() - 1 } else { current - 1 }
+            };
             app.prefs.language = langs[next].to_string();
             let _ = app.db.set_setting("language", langs[next]);
             app.push_toast(format!("Language: {}", langs[next]), false);
