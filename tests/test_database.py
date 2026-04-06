@@ -19,6 +19,7 @@ EXPECTED_TABLES = {
     "app_settings",
     "papers",
     "paper_review_sections",
+    "preferred_authors",
 }
 
 
