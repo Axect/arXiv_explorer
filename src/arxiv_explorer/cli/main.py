@@ -63,14 +63,24 @@ def tui():
     """Launch TUI mode (Rust)."""
     import shutil
     import subprocess
+    from pathlib import Path
+
+    project_root = Path(__file__).resolve().parents[3]
+    tui_dir = project_root / "tui-rs"
+
+    # Always build release binary if Cargo.toml exists (i.e. dev environment)
+    if (tui_dir / "Cargo.toml").exists():
+        result = subprocess.run(
+            ["cargo", "build", "--release"],
+            cwd=tui_dir,
+        )
+        if result.returncode != 0:
+            typer.echo("Failed to build axp-tui.")
+            raise typer.Exit(1)
 
     bin_path = shutil.which("axp-tui")
     if bin_path is None:
-        # Try cargo-built binary in tui-rs/target/release
-        from pathlib import Path
-
-        project_root = Path(__file__).resolve().parents[3]
-        candidate = project_root / "tui-rs" / "target" / "release" / "axp-tui"
+        candidate = tui_dir / "target" / "release" / "axp-tui"
         if candidate.exists():
             bin_path = str(candidate)
         else:

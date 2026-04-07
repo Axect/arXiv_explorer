@@ -29,6 +29,26 @@ class ArxivClient:
             time.sleep(RATE_LIMIT_SECONDS - elapsed)
         self._last_request_time = time.time()
 
+    @staticmethod
+    def _build_query(query: str) -> str:
+        """Convert a plain-text query to arXiv API syntax.
+
+        If the query already contains arXiv field prefixes (e.g. cat:, all:, ti:)
+        or boolean operators (AND, OR, ANDNOT), return it as-is.
+        Otherwise, split into words and join with 'all:word AND all:word'.
+        """
+        import re
+
+        # Already formatted: contains field prefix or boolean operator
+        if re.search(r'\b(all|ti|au|abs|cat|co|jr|rn|id):', query) or \
+           re.search(r'\b(AND|OR|ANDNOT)\b', query):
+            return query
+
+        words = query.split()
+        if not words:
+            return query
+        return " AND ".join(f"all:{w}" for w in words)
+
     def search(
         self,
         query: str,
@@ -40,7 +60,7 @@ class ArxivClient:
         self._rate_limit()
 
         params = {
-            "search_query": query,
+            "search_query": self._build_query(query),
             "max_results": max_results,
             "sortBy": sort_by,
             "sortOrder": sort_order,

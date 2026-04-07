@@ -33,6 +33,12 @@ pub fn handle_key(app: &mut App, key: KeyCode) -> bool {
         return false;
     }
 
+    // Search editing mode: route all keys to search handler, bypassing global shortcuts
+    if app.active_tab == Tab::Search && app.search.editing {
+        handle_search_key(app, key);
+        return false;
+    }
+
     match key {
         // Quit
         KeyCode::Char('q') | KeyCode::Char('Q') => {
