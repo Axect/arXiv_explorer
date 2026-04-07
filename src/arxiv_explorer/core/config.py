@@ -22,11 +22,22 @@ class Config:
     @classmethod
     def default(cls) -> "Config":
         """Load default configuration."""
-        config_dir = Path.home() / ".config" / "arxiv-explorer"
-        config_dir.mkdir(parents=True, exist_ok=True)
+        # Data directory (DB + files)
+        data_dir = (
+            Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+            / "arxiv-explorer"
+        )
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        # Auto-migrate DB from old location (~/.config/arxiv-explorer/)
+        old_db = Path.home() / ".config" / "arxiv-explorer" / "explorer.db"
+        new_db = data_dir / "explorer.db"
+        if old_db.exists() and not new_db.exists():
+            import shutil
+
+            shutil.copy2(old_db, new_db)
 
         # Find arxivterminal DB path
-        # Priority: XDG_DATA_HOME > ~/.local/share > macOS path
         xdg_data = os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
         arxivterminal_paths = [
             Path(xdg_data) / "arxivterminal" / "papers.db",
@@ -41,7 +52,7 @@ class Config:
                 break
 
         return cls(
-            db_path=config_dir / "explorer.db",
+            db_path=new_db,
             arxivterminal_db_path=arxivterminal_db or arxivterminal_paths[0],
         )
 
