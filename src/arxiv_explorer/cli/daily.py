@@ -200,14 +200,21 @@ def show(
     ),
     translate: bool = typer.Option(False, "--translate", "-t", help="Include translation"),
     force: bool = typer.Option(False, "--force", "-f", help="Regenerate (ignore cache)"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
 ):
     """View paper details."""
+    import json
+
     service = PaperService()
     pref_service = PreferenceService()
 
     # If no arxiv_id provided, show recently liked papers
     if arxiv_id is None:
         interesting_ids = pref_service.get_interesting_papers()
+
+        if json_output:
+            print(json.dumps({"interesting_papers": interesting_ids}))
+            return
 
         if not interesting_ids:
             print_info("No papers marked as interesting.")
@@ -229,8 +236,25 @@ def show(
     paper = service.get_paper(arxiv_id)
 
     if not paper:
+        if json_output:
+            print(json.dumps({"error": f"Paper not found: {arxiv_id}"}))
+            raise typer.Exit(1)
         print_error(f"Paper not found: {arxiv_id}")
         raise typer.Exit(1)
+
+    if json_output:
+        result = {
+            "arxiv_id": paper.arxiv_id,
+            "title": paper.title,
+            "abstract": paper.abstract,
+            "authors": paper.authors,
+            "categories": paper.categories,
+            "published": str(paper.published),
+            "updated": str(paper.updated) if paper.updated else None,
+            "pdf_url": paper.pdf_url,
+        }
+        print(json.dumps(result))
+        return
 
     paper_summary = None
     if summary or detailed:
