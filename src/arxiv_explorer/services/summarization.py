@@ -63,6 +63,8 @@ Output only JSON in the following format (no other text):
             settings = SettingsService()
             provider = get_provider(settings.get_provider())
             if not provider.is_available():
+                import sys
+                print(f"Summary generation failed: provider not available", file=sys.stderr)
                 return None
             output = provider.invoke(
                 prompt,
@@ -70,6 +72,8 @@ Output only JSON in the following format (no other text):
                 timeout=settings.get_timeout(),
             )
             if output is None:
+                import sys
+                print(f"Summary generation failed: provider returned no output", file=sys.stderr)
                 return None
             # Extract JSON block (may be in ```json ... ``` format)
             if "```json" in output:
@@ -82,13 +86,8 @@ Output only JSON in the following format (no other text):
             try:
                 data = json.loads(output)
             except json.JSONDecodeError as e:
-                # JSON parse failure - print debug info and return None
                 import sys
-
-                if "--verbose" in sys.argv or "-v" in sys.argv:
-                    print(f"\nSummary generation failed ({arxiv_id}): JSON parse error")
-                    print(f"Error: {e}")
-                    print(f"Output sample: {output[:300]}...")
+                print(f"Summary generation failed: JSON parse error: {e}", file=sys.stderr)
                 return None
 
             summary = PaperSummary(
@@ -106,11 +105,8 @@ Output only JSON in the following format (no other text):
             return summary
 
         except Exception as e:
-            # Other error - fail silently
             import sys
-
-            if "--verbose" in sys.argv or "-v" in sys.argv:
-                print(f"\nError during summary generation ({arxiv_id}): {e}")
+            print(f"Summary generation failed: {e}", file=sys.stderr)
             return None
 
     def _get_cached(self, arxiv_id: str) -> PaperSummary | None:

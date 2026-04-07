@@ -72,6 +72,8 @@ Respond in this exact JSON format:
             settings = SettingsService()
             provider = get_provider(settings.get_provider())
             if not provider.is_available():
+                import sys
+                print(f"Translation failed: provider not available", file=sys.stderr)
                 return None
             output = provider.invoke(
                 prompt,
@@ -79,6 +81,8 @@ Respond in this exact JSON format:
                 timeout=settings.get_timeout(),
             )
             if output is None:
+                import sys
+                print(f"Translation failed: provider returned no output", file=sys.stderr)
                 return None
 
             # Extract JSON block
@@ -93,11 +97,7 @@ Respond in this exact JSON format:
                 data = json.loads(output)
             except json.JSONDecodeError as e:
                 import sys
-
-                if "--verbose" in sys.argv or "-v" in sys.argv:
-                    print(f"\nTranslation failed ({arxiv_id}): JSON parse error")
-                    print(f"Error: {e}")
-                    print(f"Output sample: {output[:300]}...")
+                print(f"Translation failed: JSON parse error: {e}", file=sys.stderr)
                 return None
 
             translation = PaperTranslation(
@@ -114,9 +114,7 @@ Respond in this exact JSON format:
 
         except Exception as e:
             import sys
-
-            if "--verbose" in sys.argv or "-v" in sys.argv:
-                print(f"\nTranslation error ({arxiv_id}): {e}")
+            print(f"Translation failed: {e}", file=sys.stderr)
             return None
 
     def _get_cached(self, arxiv_id: str, target_language: Language) -> PaperTranslation | None:
