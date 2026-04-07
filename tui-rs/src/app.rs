@@ -128,6 +128,7 @@ impl Default for DailyState {
     }
 }
 
+#[derive(Default)]
 pub struct SearchState {
     pub query: String,
     pub results: Vec<ScoredPaper>,
@@ -136,17 +137,6 @@ pub struct SearchState {
     pub editing: bool,
 }
 
-impl Default for SearchState {
-    fn default() -> Self {
-        SearchState {
-            query: String::new(),
-            results: vec![],
-            selected: 0,
-            loading: false,
-            editing: false,
-        }
-    }
-}
 
 pub struct ListsState {
     pub items: Vec<(ReadingList, i64)>, // (list, paper_count)
@@ -170,19 +160,12 @@ impl Default for ListsState {
     }
 }
 
+#[derive(Default)]
 pub struct NotesState {
     pub notes: Vec<PaperNote>,
     pub selected: usize,
 }
 
-impl Default for NotesState {
-    fn default() -> Self {
-        NotesState {
-            notes: vec![],
-            selected: 0,
-        }
-    }
-}
 
 pub struct PrefsState {
     pub categories: Vec<PreferredCategory>,
@@ -417,8 +400,8 @@ impl App {
                     }
                 }
                 // Refresh detail overlay cache if it's open and belongs to this job
-                if let Some(detail) = &mut self.detail {
-                    if job_id.contains(&detail.paper.arxiv_id) {
+                if let Some(detail) = &mut self.detail
+                    && job_id.contains(&detail.paper.arxiv_id) {
                         let arxiv_id = detail.paper.arxiv_id.clone();
                         detail.summary = self
                             .db
@@ -436,7 +419,6 @@ impl App {
                             .get_review_section_count(&arxiv_id)
                             .unwrap_or(0);
                     }
-                }
             }
             AppEvent::JobFailed { job_id, message } => {
                 self.push_toast(message.clone(), true);

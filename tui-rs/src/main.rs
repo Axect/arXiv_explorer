@@ -84,11 +84,10 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
                 if let Ok(Ok(true)) = has_event {
                     match event::read() {
                         Ok(Event::Key(key)) => {
-                            if key.kind == KeyEventKind::Press {
-                                if events::handle_key(&mut app, key.code) {
+                            if key.kind == KeyEventKind::Press
+                                && events::handle_key(&mut app, key.code) {
                                     return Ok(());
                                 }
-                            }
                         }
                         Ok(Event::Mouse(mouse)) => {
                             events::handle_mouse(&mut app, mouse);
@@ -910,27 +909,28 @@ fn render_notes(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(right_block, chunks[1]);
 
     if let Some(note) = app.notes.notes.get(app.notes.selected) {
-        let mut lines: Vec<Line> = Vec::new();
-        lines.push(Line::from(vec![
-            Span::styled("Paper: ", Style::default().fg(ACCENT).bold()),
-            Span::styled(note.arxiv_id.clone(), Style::default().fg(TEXT)),
-        ]));
-        lines.push(Line::from(vec![
-            Span::styled("Type: ", Style::default().fg(ACCENT).bold()),
-            Span::styled(note.note_type.clone(), Style::default().fg(TEXT)),
-        ]));
-        lines.push(Line::from(vec![
-            Span::styled("Created: ", Style::default().fg(ACCENT).bold()),
-            Span::styled(
-                note.created_at.get(..10).unwrap_or(&note.created_at).to_string(),
-                Style::default().fg(TEXT_DIM),
-            ),
-        ]));
-        lines.push(Line::default());
-        lines.push(Line::from(Span::styled(
-            note.content.clone(),
-            Style::default().fg(TEXT),
-        )));
+        let lines: Vec<Line> = vec![
+            Line::from(vec![
+                Span::styled("Paper: ", Style::default().fg(ACCENT).bold()),
+                Span::styled(note.arxiv_id.clone(), Style::default().fg(TEXT)),
+            ]),
+            Line::from(vec![
+                Span::styled("Type: ", Style::default().fg(ACCENT).bold()),
+                Span::styled(note.note_type.clone(), Style::default().fg(TEXT)),
+            ]),
+            Line::from(vec![
+                Span::styled("Created: ", Style::default().fg(ACCENT).bold()),
+                Span::styled(
+                    note.created_at.get(..10).unwrap_or(&note.created_at).to_string(),
+                    Style::default().fg(TEXT_DIM),
+                ),
+            ]),
+            Line::default(),
+            Line::from(Span::styled(
+                note.content.clone(),
+                Style::default().fg(TEXT),
+            )),
+        ];
         let paragraph = Paragraph::new(lines)
             .style(Style::default().bg(BG))
             .wrap(Wrap { trim: true });
@@ -1926,7 +1926,7 @@ fn render_command_template_input(f: &mut Frame, app: &App) {
 // =============================================================================
 
 fn stars_display(n: i64) -> String {
-    let filled = n.min(5).max(0) as usize;
+    let filled = n.clamp(0, 5) as usize;
     "★".repeat(filled) + &"☆".repeat(5 - filled)
 }
 

@@ -142,7 +142,7 @@ impl Database {
     }
 
     pub fn add_keyword(&self, keyword: &str, weight: i64) -> Result<()> {
-        let w = weight.max(1).min(5);
+        let w = weight.clamp(1, 5);
         self.conn.execute(
             "INSERT INTO keyword_interests (keyword, weight, source) VALUES (?1, ?2, 'explicit') \
              ON CONFLICT(keyword) DO UPDATE SET weight = ?2",
@@ -152,7 +152,7 @@ impl Database {
     }
 
     pub fn set_keyword_weight(&self, keyword: &str, weight: i64) -> Result<()> {
-        let w = weight.max(1).min(5);
+        let w = weight.clamp(1, 5);
         self.conn.execute(
             "UPDATE keyword_interests SET weight = ?1 WHERE keyword = ?2",
             params![w, keyword.to_lowercase()],

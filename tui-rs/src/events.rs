@@ -193,9 +193,7 @@ pub fn handle_overlay_key(app: &mut App, key: KeyCode) {
                     }
                 }
                 KeyCode::Up => {
-                    if selected > 0 {
-                        selected -= 1;
-                    }
+                    selected = selected.saturating_sub(1);
                     app.overlay = Some(crate::app::OverlayMode::CategoryPicker { search, filtered, selected });
                 }
                 KeyCode::Down => {
@@ -309,9 +307,7 @@ pub fn handle_overlay_key(app: &mut App, key: KeyCode) {
                     // overlay already taken, just don't re-assign
                 }
                 KeyCode::Up => {
-                    if selected > 0 {
-                        selected -= 1;
-                    }
+                    selected = selected.saturating_sub(1);
                     app.overlay = Some(crate::app::OverlayMode::PresetPicker { selected });
                 }
                 KeyCode::Down => {
@@ -474,11 +470,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     if app.detail.is_some() {
         match mouse.kind {
             MouseEventKind::ScrollUp => {
-                if let Some(detail) = &mut app.detail {
-                    if detail.scroll > 0 {
+                if let Some(detail) = &mut app.detail
+                    && detail.scroll > 0 {
                         detail.scroll -= 1;
                     }
-                }
             }
             MouseEventKind::ScrollDown => {
                 if let Some(detail) = &mut app.detail {
@@ -999,8 +994,8 @@ pub fn handle_lists_key(app: &mut App, key: KeyCode) {
             }
         }
         KeyCode::Delete => {
-            if app.lists.focus_left {
-                if let Some((list, _)) = app.lists.items.get(app.lists.selected_list) {
+            if app.lists.focus_left
+                && let Some((list, _)) = app.lists.items.get(app.lists.selected_list) {
                     let list_id = list.id;
                     let name = list.name.clone();
                     match app.db.delete_list(list_id) {
@@ -1039,7 +1034,6 @@ pub fn handle_lists_key(app: &mut App, key: KeyCode) {
                         }
                     }
                 }
-            }
         }
         _ => {}
     }
@@ -1051,11 +1045,10 @@ pub fn load_list_papers_pub(app: &mut App) {
         let list_id = list.id;
         let papers = app.db.get_list_papers(list_id).unwrap_or_default();
         for p in &papers {
-            if !app.lists.paper_details.contains_key(&p.arxiv_id) {
-                if let Ok(Some(detail)) = app.db.get_paper(&p.arxiv_id) {
+            if !app.lists.paper_details.contains_key(&p.arxiv_id)
+                && let Ok(Some(detail)) = app.db.get_paper(&p.arxiv_id) {
                     app.lists.paper_details.insert(p.arxiv_id.clone(), detail);
                 }
-            }
         }
         app.lists.papers = papers;
         app.lists.selected_paper = 0;
@@ -1133,9 +1126,9 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                 if total != 100 && total > 0 {
                     let mut result = [0i64; 4];
                     let mut distributed = 0i64;
-                    for i in 0..4 {
-                        result[i] = (app.prefs.weights[i] * 100 + total / 2) / total;
-                        distributed += result[i];
+                    for (i, slot) in result.iter_mut().enumerate() {
+                        *slot = (app.prefs.weights[i] * 100 + total / 2) / total;
+                        distributed += *slot;
                     }
                     // Fix rounding
                     let diff = 100 - distributed;
@@ -1391,9 +1384,7 @@ fn cycle_config_option(app: &mut App, forward: bool) {
             let current = providers.iter().position(|p| p == &app.prefs.provider).unwrap_or(0);
             let next = if forward {
                 (current + 1) % providers.len()
-            } else {
-                if current == 0 { providers.len() - 1 } else { current - 1 }
-            };
+            } else if current == 0 { providers.len() - 1 } else { current - 1 };
             app.prefs.provider = providers[next].clone();
             let _ = app.db.set_setting("ai_provider", &providers[next]);
             app.push_toast(format!("Provider: {}", providers[next]), false);
@@ -1403,9 +1394,7 @@ fn cycle_config_option(app: &mut App, forward: bool) {
             let current = langs.iter().position(|&l| l == app.prefs.language).unwrap_or(0);
             let next = if forward {
                 (current + 1) % langs.len()
-            } else {
-                if current == 0 { langs.len() - 1 } else { current - 1 }
-            };
+            } else if current == 0 { langs.len() - 1 } else { current - 1 };
             app.prefs.language = langs[next].to_string();
             let _ = app.db.set_setting("language", langs[next]);
             app.push_toast(format!("Language: {}", langs[next]), false);
