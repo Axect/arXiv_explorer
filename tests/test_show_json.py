@@ -8,7 +8,6 @@ from arxiv_explorer.cli.main import app
 from arxiv_explorer.core.config import Config
 from arxiv_explorer.core.database import get_connection
 
-
 runner = CliRunner()
 
 
