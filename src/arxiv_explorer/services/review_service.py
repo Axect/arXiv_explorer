@@ -418,7 +418,9 @@ class PaperReviewService:
             return None
 
         normalized = arxiv_id.replace("/", "_")
-        output_dir = Path.cwd() / "papers"
+        from ..core.config import get_config
+
+        output_dir = get_config().db_path.parent / "papers"
 
         try:
             result = subprocess.run(
