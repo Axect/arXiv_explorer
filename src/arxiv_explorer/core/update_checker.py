@@ -5,7 +5,6 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-
 # Throttle: check at most once per this many seconds
 CHECK_INTERVAL_SECONDS = 12 * 60 * 60  # 12 hours
 

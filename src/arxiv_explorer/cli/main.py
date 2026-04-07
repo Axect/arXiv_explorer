@@ -45,8 +45,8 @@ def _prompt_update(status: UpdateStatus) -> None:
     # Warn about conflicts
     if status.conflict_files:
         console.print(
-            f"\n[bold red]Warning:[/bold red] "
-            f"The following locally modified files also changed on remote:"
+            "\n[bold red]Warning:[/bold red] "
+            "The following locally modified files also changed on remote:"
         )
         for f in status.conflict_files:
             console.print(f"  [red]- {f}[/red]")
