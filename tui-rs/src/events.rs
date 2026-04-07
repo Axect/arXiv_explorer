@@ -135,7 +135,16 @@ pub fn handle_confirm_key(app: &mut App, key: KeyCode) {
             match action {
                 ConfirmAction::RegenerateSummary => trigger_summarize(app),
                 ConfirmAction::RegenerateTranslation => trigger_translate(app),
-                ConfirmAction::RemoveCustomProvider(_) => {}
+                ConfirmAction::RemoveCustomProvider(name) => {
+                    let _ = app.db.remove_custom_provider(&name);
+                    app.prefs.custom_providers = app.db.get_custom_providers().unwrap_or_default();
+                    if app.prefs.provider == name {
+                        app.prefs.provider = "gemini".to_string();
+                    }
+                    app.prefs.custom_provider_selected = app.prefs.custom_provider_selected
+                        .min(app.prefs.custom_providers.len().saturating_sub(1));
+                    app.push_toast(format!("Removed provider: {name}"), false);
+                }
             }
         }
         _ => {
@@ -1048,7 +1057,7 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                 1 => app.prefs.keywords.len(),
                 2 => app.prefs.authors.len(),
                 3 => 4,
-                4 => 2, // provider (0) and language (1)
+                4 => 3, // provider (0), language (1), custom (2)
                 _ => 1,
             };
             if max > 0 && app.prefs.section_selected[sec] + 1 < max {
@@ -1103,7 +1112,13 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                     }
                 }
                 4 => {
-                    cycle_config_option(app, false);
+                    if app.prefs.section_selected[4] == 2 {
+                        if app.prefs.custom_provider_selected > 0 {
+                            app.prefs.custom_provider_selected -= 1;
+                        }
+                    } else {
+                        cycle_config_option(app, false);
+                    }
                 }
                 _ => {}
             }
@@ -1142,7 +1157,14 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                     }
                 }
                 4 => {
-                    cycle_config_option(app, true);
+                    if app.prefs.section_selected[4] == 2 {
+                        let max = app.prefs.custom_providers.len().saturating_sub(1);
+                        if app.prefs.custom_provider_selected < max {
+                            app.prefs.custom_provider_selected += 1;
+                        }
+                    } else {
+                        cycle_config_option(app, true);
+                    }
                 }
                 _ => {}
             }
@@ -1167,6 +1189,13 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                     app.overlay = Some(crate::app::OverlayMode::AuthorInput {
                         text: String::new(),
                     });
+                }
+                4 => {
+                    if app.prefs.section_selected[4] == 2 {
+                        app.overlay = Some(crate::app::OverlayMode::PresetPicker {
+                            selected: 0,
+                        });
+                    }
                 }
                 _ => {}
             }
@@ -1202,6 +1231,15 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                         app.prefs.authors = app.db.get_authors().unwrap_or_default();
                         app.prefs.section_selected[2] = sel
                             .min(app.prefs.authors.len().saturating_sub(1));
+                    }
+                }
+                4 => {
+                    if app.prefs.section_selected[4] == 2 {
+                        let custom_sel = app.prefs.custom_provider_selected;
+                        if let Some(cp) = app.prefs.custom_providers.get(custom_sel) {
+                            let name = cp.name.clone();
+                            app.confirm_action = Some(crate::app::ConfirmAction::RemoveCustomProvider(name));
+                        }
                     }
                 }
                 _ => {}
