@@ -12,7 +12,16 @@ pub struct Database {
 
 impl Database {
     /// Open database at the given path, enabling WAL mode and foreign keys.
+    /// Creates the parent directory if it does not exist.
     pub fn open(path: &PathBuf) -> Result<Self> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                rusqlite::Error::SqliteFailure(
+                    rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CANTOPEN),
+                    Some(format!("failed to create directory {}: {e}", parent.display())),
+                )
+            })?;
+        }
         let conn = Connection::open(path)?;
         conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
         Ok(Self { conn })
@@ -20,12 +29,14 @@ impl Database {
 
     /// Return the default database path.
     /// Checks AXP_DB env var first, then ~/.config/arxiv-explorer/explorer.db
+    /// Uses ~/.config/ explicitly (not dirs::config_dir) to stay consistent
+    /// with the Python side on all platforms including macOS.
     pub fn default_path() -> PathBuf {
         if let Ok(p) = std::env::var("AXP_DB") {
             return PathBuf::from(p);
         }
-        dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
+        let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+        home.join(".config")
             .join("arxiv-explorer")
             .join("explorer.db")
     }
