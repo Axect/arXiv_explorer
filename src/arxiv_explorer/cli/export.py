@@ -163,8 +163,9 @@ def export_markdown(
 
     print_info(f"Converting {arxiv_id}...")
 
+    output_dir = Path.cwd() / "papers"
     result = subprocess.run(
-        ["uv", "run", str(script_path), arxiv_id],
+        ["uv", "run", str(script_path), arxiv_id, "--output-dir", str(output_dir)],
         capture_output=True,
         text=True,
     )
