@@ -303,9 +303,121 @@ pub fn handle_overlay_key(app: &mut App, key: KeyCode) {
                 }
             }
         }
-        crate::app::OverlayMode::PresetPicker { .. }
-        | crate::app::OverlayMode::ProviderNameInput { .. }
-        | crate::app::OverlayMode::CommandTemplateInput { .. } => {}
+        crate::app::OverlayMode::PresetPicker { mut selected } => {
+            match key {
+                KeyCode::Esc => {
+                    // overlay already taken, just don't re-assign
+                }
+                KeyCode::Up => {
+                    if selected > 0 {
+                        selected -= 1;
+                    }
+                    app.overlay = Some(crate::app::OverlayMode::PresetPicker { selected });
+                }
+                KeyCode::Down => {
+                    if selected + 1 < crate::presets::PRESETS.len() {
+                        selected += 1;
+                    }
+                    app.overlay = Some(crate::app::OverlayMode::PresetPicker { selected });
+                }
+                KeyCode::Enter => {
+                    let preset_name = crate::presets::PRESETS[selected].name.to_string();
+                    app.overlay = Some(crate::app::OverlayMode::ProviderNameInput {
+                        preset: preset_name,
+                        text: String::new(),
+                    });
+                }
+                _ => {
+                    app.overlay = Some(crate::app::OverlayMode::PresetPicker { selected });
+                }
+            }
+        }
+        crate::app::OverlayMode::ProviderNameInput { mut text, preset } => {
+            match key {
+                KeyCode::Esc => {
+                    // overlay already taken, just don't re-assign
+                }
+                KeyCode::Enter => {
+                    let name = text.trim().to_string();
+                    if name.is_empty() {
+                        app.push_toast("Name cannot be empty".to_string(), true);
+                        app.overlay = Some(crate::app::OverlayMode::ProviderNameInput { preset, text });
+                    } else if crate::presets::is_reserved(&name) {
+                        app.push_toast(format!("'{name}' is a reserved name"), true);
+                        app.overlay = Some(crate::app::OverlayMode::ProviderNameInput { preset, text });
+                    } else if app.prefs.custom_providers.iter().any(|cp| cp.name == name) {
+                        app.push_toast(format!("'{name}' already exists"), true);
+                        app.overlay = Some(crate::app::OverlayMode::ProviderNameInput { preset, text });
+                    } else {
+                        let preset_entry = crate::presets::PRESETS.iter()
+                            .find(|p| p.name == preset.as_str());
+                        let template = match preset_entry {
+                            Some(p) => p.template.replace("{name}", &name),
+                            None => name.clone(),
+                        };
+                        app.overlay = Some(crate::app::OverlayMode::CommandTemplateInput {
+                            preset,
+                            name,
+                            text: template,
+                        });
+                    }
+                }
+                KeyCode::Backspace => {
+                    text.pop();
+                    app.overlay = Some(crate::app::OverlayMode::ProviderNameInput { preset, text });
+                }
+                KeyCode::Char(c) => {
+                    text.push(c);
+                    app.overlay = Some(crate::app::OverlayMode::ProviderNameInput { preset, text });
+                }
+                _ => {
+                    app.overlay = Some(crate::app::OverlayMode::ProviderNameInput { preset, text });
+                }
+            }
+        }
+        crate::app::OverlayMode::CommandTemplateInput { preset, name, mut text } => {
+            match key {
+                KeyCode::Esc => {
+                    // overlay already taken, just don't re-assign
+                }
+                KeyCode::Enter => {
+                    let template = text.trim().to_string();
+                    if template.is_empty() {
+                        app.push_toast("Command cannot be empty".to_string(), true);
+                        app.overlay = Some(crate::app::OverlayMode::CommandTemplateInput { preset, name, text });
+                    } else {
+                        let entry = crate::db::models::CustomProviderEntry {
+                            name: name.clone(),
+                            preset: preset.clone(),
+                            command_template: template,
+                            default_model: String::new(),
+                        };
+                        match app.db.add_custom_provider(&entry) {
+                            Ok(_) => {
+                                app.prefs.custom_providers = app.db.get_custom_providers().unwrap_or_default();
+                                app.push_toast(format!("Added provider: {}", name), false);
+                                // overlay already taken, don't re-assign (dismiss)
+                            }
+                            Err(e) => {
+                                app.push_toast(format!("Error: {e}"), true);
+                                app.overlay = Some(crate::app::OverlayMode::CommandTemplateInput { preset, name, text });
+                            }
+                        }
+                    }
+                }
+                KeyCode::Backspace => {
+                    text.pop();
+                    app.overlay = Some(crate::app::OverlayMode::CommandTemplateInput { preset, name, text });
+                }
+                KeyCode::Char(c) => {
+                    text.push(c);
+                    app.overlay = Some(crate::app::OverlayMode::CommandTemplateInput { preset, name, text });
+                }
+                _ => {
+                    app.overlay = Some(crate::app::OverlayMode::CommandTemplateInput { preset, name, text });
+                }
+            }
+        }
     }
 }
 
