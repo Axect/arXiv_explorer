@@ -70,9 +70,9 @@ class SettingsService:
                 settings[row["key"]] = row["value"]
         return settings
 
-    def get_provider(self) -> AIProviderType:
-        """Get the current AI provider."""
-        return AIProviderType(self.get("ai_provider"))
+    def get_provider(self) -> str:
+        """Return the active provider name as a string."""
+        return self.get("ai_provider")
 
     def get_model(self) -> str:
         """Get the current AI model override."""
