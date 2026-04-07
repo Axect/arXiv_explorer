@@ -223,9 +223,7 @@ class PaperReviewService:
         if len(review.authors) > 10:
             author_str += f" (+{len(review.authors) - 10} more)"
 
-        source_label = (
-            "Full text" if review.source_type == "full_text" else "Abstract only"
-        )
+        source_label = "Full text" if review.source_type == "full_text" else "Abstract only"
 
         # Quick Reference Card
         parts.append("| | |")
@@ -1421,9 +1419,7 @@ IMPORTANT: Respond ONLY with valid JSON, no other text.
     def _prompt_reading_guide(self, header, full_text_md, paper_sections, **_) -> str:
         sections_list = ""
         if paper_sections:
-            sections_list = ", ".join(
-                h for h in paper_sections.keys() if h != "_preamble"
-            )
+            sections_list = ", ".join(h for h in paper_sections.keys() if h != "_preamble")
 
         context = full_text_md[:3000] if full_text_md else ""
         context_block = f"Paper structure:\n{context}" if context else ""

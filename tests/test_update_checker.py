@@ -98,12 +98,15 @@ class TestCheckForUpdates:
     def test_force_bypasses_throttle(self, fake_repo):
         """force=True should check even if recently checked."""
         _touch_stamp(fake_repo)
-        with patch(
-            "arxiv_explorer.core.update_checker._get_tracking_branch",
-            return_value=None,
-        ), patch(
-            "arxiv_explorer.core.update_checker._run_git",
-            return_value=None,
+        with (
+            patch(
+                "arxiv_explorer.core.update_checker._get_tracking_branch",
+                return_value=None,
+            ),
+            patch(
+                "arxiv_explorer.core.update_checker._run_git",
+                return_value=None,
+            ),
         ):
             result = check_for_updates(repo=fake_repo, force=True)
             # No tracking branch → returns None after fetch attempt
