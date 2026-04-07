@@ -5,34 +5,36 @@
 [![CI](https://github.com/Axect/arXiv_explorer/actions/workflows/ci.yml/badge.svg)](https://github.com/Axect/arXiv_explorer/actions/workflows/ci.yml)
 [![GitHub stars](https://img.shields.io/github/stars/Axect/arXiv_explorer)](https://github.com/Axect/arXiv_explorer/stargazers)
 
-> Your personal research assistant for arXiv — discover, organize, and annotate papers from the terminal.
+> Discover, organize, and annotate arXiv papers from the terminal. Personalized recommendations that learn from you.
 
 ![arXiv Explorer TUI](tui.png)
 
-## Why arXiv Explorer?
+## Highlights
 
-- **Learns from you** — The recommendation engine improves every time you like or dislike a paper. No manual tuning required.
-- **No API keys needed** — Fetches papers directly from the public arXiv API. AI features use your locally installed CLI tools.
-- **Fully local** — All data lives in a single SQLite file on your machine. No accounts, no cloud sync, no tracking.
-- **Terminal-native** — A rich CLI (Python/Typer) and a fast TUI (Rust/Ratatui). Works over SSH.
-- **Composable** — Pipe exports to other tools, integrate with arxivterminal or arxiv-doc-builder, or build your own workflow.
+- **Learns from you.** Like or dislike papers and the recommendation engine adapts. No manual tuning.
+- **No API keys needed.** Papers come straight from the public arXiv API. AI features use your locally installed CLI tools.
+- **Fully local.** A single SQLite file on your machine. No accounts, no cloud, no tracking.
+- **Terminal-native.** A Python CLI for scripting and a fast Rust TUI for browsing. Works over SSH.
+- **Composable.** Export to Markdown/JSON/CSV. Integrates with [arxivterminal](https://github.com/Axect/arxivterminal) and [arxiv-doc-builder](https://github.com/Axect/arxiv-doc-builder).
 
 ## Features
 
-- **Personalized Recommendations** — TF-IDF content similarity + category/keyword/recency scoring
-- **Reading Lists** — Organize papers into named lists with reading status tracking
-- **Paper Notes** — Attach typed notes (general, question, insight, todo) to any paper
-- **AI Summaries** — Generate summaries via configurable AI providers (Gemini, Claude, OpenAI, Ollama, or custom)
-- **Translation** — Translate paper titles and abstracts via AI
-- **Export** — Markdown, JSON, CSV export for papers, lists, and notes
-- **TUI** — Full terminal UI (Rust/Ratatui) with tabs, detail panels, and keyboard shortcuts
-- **Paper Cache** — Smart daily fetch caching eliminates redundant arXiv API calls
+| | |
+|---|---|
+| **Personalized Recommendations** | TF-IDF content similarity + category / keyword / recency scoring |
+| **Reading Lists** | Organize papers into named lists with reading status |
+| **Paper Notes** | Attach typed notes (general, question, insight, todo) |
+| **AI Summaries & Reviews** | Generate via Gemini, Claude, OpenAI, Ollama, or custom provider |
+| **Translation** | Translate titles and abstracts via AI |
+| **Export** | Markdown, JSON, CSV for papers, lists, and notes |
+| **TUI** | Native Rust terminal UI with tabs, overlays, and keyboard shortcuts |
+| **Smart Caching** | Daily fetch cache avoids redundant arXiv API calls |
 
 ## Requirements
 
-- Python 3.11+
+- [Python 3.11+](https://www.python.org/downloads/)
 - [uv](https://docs.astral.sh/uv/) package manager
-- Rust toolchain (for TUI — `rustup` recommended)
+- [Rust toolchain](https://rustup.rs/) (for TUI)
 
 ## Installation
 
@@ -41,159 +43,162 @@ git clone https://github.com/Axect/arXiv_explorer.git
 cd arXiv_explorer
 uv sync
 
-# Build the TUI (optional but recommended)
+# Build the TUI
 cd tui-rs && cargo build --release && cd ..
 ```
 
-> **Tip:** All commands below use `uv run axp` which works without activating a virtual environment.
-> If you prefer the shorter `axp`, activate the venv first (`source .venv/bin/activate` or `source .venv/bin/activate.fish` for fish) or install globally with `uv tool install -e .`.
-
-### Shell Completion
+<details>
+<summary>Shell completion (fish / bash / zsh)</summary>
 
 ```bash
-# fish
-uv run axp --install-completion fish
-
-# bash
-uv run axp --install-completion bash
-
-# zsh
-uv run axp --install-completion zsh
+axp --install-completion fish   # or bash, zsh
 ```
+
+</details>
 
 ## Quick Start
 
 ```bash
 # 1. Set your research interests
-uv run axp prefs add-category hep-ph --priority 2
-uv run axp prefs add-keyword "deep learning" --weight 4
+axp prefs add-category hep-ph --priority 2
+axp prefs add-keyword "deep learning" --weight 4
 
 # 2. Fetch and rank recent papers
-uv run axp daily --days 7 --limit 10
+axp daily --days 7 --limit 10
 
-# 3. Launch the TUI for the full experience
-uv run axp tui
+# 3. Launch the TUI
+axp tui
 ```
 
 See [QUICKSTART.md](QUICKSTART.md) for a full walkthrough.
 
 ## TUI
 
-Launch with `uv run axp tui` (requires `cargo build --release` in `tui-rs/`). The TUI is a native Rust binary (Ratatui + Crossterm) that communicates with the Python CLI via subprocess.
+Launch with `axp tui`. Built with Rust (Ratatui + Crossterm) for snappy navigation.
 
-| Tab | Key | Description |
-|-----|-----|-------------|
-| **Daily** | `1` | Browse personalized papers with detail panel |
+| Tab | Key | What you can do |
+|-----|-----|-----------------|
+| **Daily** | `1` | Browse personalized papers with a detail panel |
 | **Search** | `2` | Search arXiv interactively |
 | **Lists** | `3` | Manage reading lists and track status |
 | **Notes** | `4` | Browse and filter paper notes |
-| **Prefs** | `5` | Manage categories, keywords, authors, weights, and AI settings |
+| **Prefs** | `5` | Edit categories, keywords, authors, weights, and AI config |
 
-**Key bindings**: `Enter` open detail / `l` like / `d` dislike / `s` summarize / `t` translate / `r` review / `b` bookmark / `f` fetch / `j` jobs / `a` add (in Prefs) / `q` quit
+### Keyboard shortcuts
+
+| Key | Action | Key | Action |
+|-----|--------|-----|--------|
+| `Enter` | Open detail | `f` | Fetch papers |
+| `l` | Like | `b` | Bookmark |
+| `d` | Dislike | `j` | Jobs panel |
+| `s` | Summarize | `a` | Add (in Prefs) |
+| `t` | Translate | `D` | Reset weights |
+| `r` | Review | `q` | Quit |
 
 ## CLI Reference
 
 ### Paper Discovery
 
-| Command | Description |
-|---------|-------------|
-| `uv run axp daily [-d DAYS] [-l LIMIT] [-s]` | Fetch recent papers with personalized ranking |
-| `uv run axp top [-l LIMIT] [-s]` | View top recommended papers (from liked history) |
-| `uv run axp search QUERY [-l LIMIT] [-a]` | Search papers (add `-a` for direct arXiv API) |
+```
+axp daily [-d DAYS] [-l LIMIT] [-s]     Fetch recent papers (personalized)
+axp top   [-l LIMIT] [-s]               Top recommended papers
+axp search QUERY [-l LIMIT] [-a]        Search (add -a for arXiv API)
+```
 
 ### Paper Interaction
 
-| Command | Description |
-|---------|-------------|
-| `uv run axp show [ARXIV_ID] [-s] [-d] [-t]` | View paper details (or recently liked papers) |
-| `uv run axp like ARXIV_ID [-n NOTE]` | Mark a paper as interesting |
-| `uv run axp dislike ARXIV_ID` | Mark a paper as not interesting |
-| `uv run axp translate ARXIV_ID` | Translate a paper's title and abstract |
+```
+axp show  [ARXIV_ID] [-s] [-d] [-t]     View paper details
+axp like  ARXIV_ID [-n NOTE]             Mark as interesting
+axp dislike ARXIV_ID                     Mark as not interesting
+axp translate ARXIV_ID                   Translate title and abstract
+axp review ARXIV_ID [-f] [-t]            Generate AI review
+```
 
 ### Organization
 
-| Command | Description |
-|---------|-------------|
-| `uv run axp prefs` | View/manage preferred categories and keywords |
-| `uv run axp list` | Manage reading lists (create, add, remove, status) |
-| `uv run axp note` | Manage paper notes (add, show, list) |
-| `uv run axp export` | Export papers/lists to Markdown, JSON, or CSV |
+```
+axp prefs                                View/manage categories and keywords
+axp list                                 Manage reading lists
+axp note                                 Manage paper notes
+axp export                               Export to Markdown, JSON, or CSV
+```
 
 ### Configuration
 
-| Command | Description |
-|---------|-------------|
-| `uv run axp config show` | View current AI provider settings |
-| `uv run axp config set-provider PROVIDER` | Change AI provider (gemini, claude, openai, ollama, custom) |
-| `uv run axp config set-language LANG` | Change display language (en, ko) |
-| `uv run axp config test` | Test current provider connection |
+```
+axp config show                          View current AI settings
+axp config set-provider PROVIDER         Switch provider
+axp config set-language LANG             Change language (en, ko)
+axp config test                          Test provider connection
+```
 
 ## AI Providers
 
-AI features (summarization and translation) call external CLI tools via subprocess — no API keys are stored in the application.
+AI features call external CLI tools via subprocess. No API keys are stored in the app.
 
-| Provider | CLI command | Invocation | Default model |
-|----------|------------|------------|---------------|
-| **Gemini** | `gemini` | `gemini -m MODEL -p PROMPT` | (provider default) |
-| **Claude** | `claude` | `claude --model MODEL -p PROMPT --output-format text` | (provider default) |
-| **Codex** (OpenAI) | `codex` | `codex --model MODEL --prompt PROMPT` | (provider default) |
-| **Ollama** | `ollama` | `ollama run MODEL PROMPT` | `llama3.2` |
-| **OpenCode** | `opencode` | `opencode run --model MODEL PROMPT` | (provider default) |
-| **Custom** | user-defined | template with `{prompt}` and optional `{model}` placeholders | — |
+| Provider | CLI tool | Notes |
+|----------|----------|-------|
+| **Gemini** | `gemini` | Default provider |
+| **Claude** | `claude` | Uses `--output-format text` |
+| **Codex** (OpenAI) | `codex` | |
+| **Ollama** | `ollama` | Default model: `llama3.2` |
+| **OpenCode** | `opencode` | |
+| **Custom** | user-defined | Template with `{prompt}` placeholder |
 
 ```bash
-uv run axp config set-provider claude          # Switch provider
-uv run axp config set-model "claude-sonnet-4-5-20250929"  # Override model
-uv run axp config test                         # Verify connection
+axp config set-provider claude
+axp config set-model "claude-sonnet-4-5-20250929"
+axp config test
 ```
 
 ## Architecture
 
 ```
-src/arxiv_explorer/          # Python backend
-  core/       # Data models, database schema, configuration
-  services/   # Business logic (recommendation, search, summarization, caching)
-  cli/        # Typer-based CLI commands
-  utils/      # Display helpers
+src/arxiv_explorer/              Python backend
+  core/        Data models, database schema, config
+  services/    Recommendation, search, summarization, caching
+  cli/         Typer-based CLI commands
+  utils/       Display helpers
 
-tui-rs/                      # Rust TUI frontend
-  src/app.rs       # App state, tabs, overlays, jobs
-  src/events.rs    # Key/mouse input handling
-  src/main.rs      # Rendering (Ratatui)
-  src/categories.rs # arXiv category taxonomy
-  src/commands/    # Async subprocess calls to Python CLI
-  src/db/          # Direct SQLite access (read/write)
+tui-rs/                          Rust TUI frontend
+  src/app.rs         App state, tabs, overlays, jobs
+  src/events.rs      Key/mouse input handling
+  src/main.rs        Rendering (Ratatui)
+  src/categories.rs  arXiv category taxonomy
+  src/commands/      Async subprocess calls to Python CLI
+  src/db/            Direct SQLite access (read/write)
 ```
 
-**Recommendation** — TF-IDF cosine similarity (50%) + category priority (20%) + keyword matching (10%) + recency bonus (5%).
+**Scoring formula** (defaults, configurable in TUI):
+Content similarity 60% + Category match 20% + Keyword match 15% + Recency bonus 5%.
 
-## Comparison
+## Comparison with arxiv-sanity-lite
 
-Different tools serve different workflows. [arxiv-sanity-lite](https://github.com/karpathy/arxiv-sanity-lite) pioneered TF-IDF-based paper recommendations and remains the gold standard for web-based discovery. arXiv Explorer brings a similar approach to the terminal.
+[arxiv-sanity-lite](https://github.com/karpathy/arxiv-sanity-lite) pioneered TF-IDF paper recommendations for the web. arXiv Explorer brings a similar idea to the terminal.
 
 | | arxiv-sanity-lite | arXiv Explorer |
 |---|---|---|
-| **Interface** | Web UI | CLI + TUI (works over SSH) |
-| **Recommendation** | TF-IDF (web) | TF-IDF (local, learns per session) |
-| **Setup** | Server deployment | `uv sync` and go |
-| **Data storage** | PostgreSQL + S3 | Single SQLite file |
-| **AI summaries** | No | Yes (pluggable providers) |
+| **Interface** | Web UI | CLI + TUI (SSH-friendly) |
+| **Recommendation** | TF-IDF (server) | TF-IDF (local) |
+| **Setup** | Server deployment | `uv sync` + `cargo build` |
+| **Storage** | PostgreSQL + S3 | Single SQLite file |
+| **AI summaries** | No | Yes (pluggable) |
 | **Reading lists & notes** | No | Yes |
 | **Export** | No | Markdown, JSON, CSV |
-| **Best for** | Browsing with a team | Solo terminal workflow |
 
 ## Integration
 
-- **[arxivterminal](https://github.com/Axect/arxivterminal)** — Reads from its local paper database (read-only)
-- **[arxiv-doc-builder](https://github.com/Axect/arxiv-doc-builder)** — Converts papers to Markdown via `uv run axp export markdown`
+- **[arxivterminal](https://github.com/Axect/arxivterminal)**: Reads from its local paper database (read-only)
+- **[arxiv-doc-builder](https://github.com/Axect/arxiv-doc-builder)**: Converts papers to Markdown via `axp export markdown`
 
 ## Data Storage
 
-All data is stored locally in SQLite at `~/.config/arxiv-explorer/explorer.db`. No cloud sync.
+Everything lives in `~/.config/arxiv-explorer/explorer.db`. Single SQLite file, fully local.
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for development setup and guidelines.
+Contributions welcome! See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for guidelines.
 
 ## License
 
