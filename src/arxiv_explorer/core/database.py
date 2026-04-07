@@ -100,6 +100,15 @@ CREATE TABLE IF NOT EXISTS app_settings (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Custom AI providers
+CREATE TABLE IF NOT EXISTS custom_providers (
+    name TEXT PRIMARY KEY NOT NULL,
+    preset TEXT NOT NULL,
+    command_template TEXT NOT NULL,
+    default_model TEXT DEFAULT '',
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Paper review sections (incremental cache)
 CREATE TABLE IF NOT EXISTS paper_review_sections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -79,6 +79,7 @@ pub fn handle_key(app: &mut App, key: KeyCode) -> bool {
             app.prefs.weights = app.db.get_weights().unwrap_or([60, 20, 15, 5]);
             app.prefs.provider = app.db.get_setting("ai_provider", "gemini").unwrap_or_else(|_| "gemini".to_string());
             app.prefs.language = app.db.get_setting("language", "en").unwrap_or_else(|_| "en".to_string());
+            app.prefs.custom_providers = app.db.get_custom_providers().unwrap_or_default();
         }
         // Delegate to per-tab handler
         _ => match app.active_tab {
@@ -134,6 +135,16 @@ pub fn handle_confirm_key(app: &mut App, key: KeyCode) {
             match action {
                 ConfirmAction::RegenerateSummary => trigger_summarize(app),
                 ConfirmAction::RegenerateTranslation => trigger_translate(app),
+                ConfirmAction::RemoveCustomProvider(name) => {
+                    let _ = app.db.remove_custom_provider(&name);
+                    app.prefs.custom_providers = app.db.get_custom_providers().unwrap_or_default();
+                    if app.prefs.provider == name {
+                        app.prefs.provider = "gemini".to_string();
+                    }
+                    app.prefs.custom_provider_selected = app.prefs.custom_provider_selected
+                        .min(app.prefs.custom_providers.len().saturating_sub(1));
+                    app.push_toast(format!("Removed provider: {name}"), false);
+                }
             }
         }
         _ => {
@@ -289,6 +300,121 @@ pub fn handle_overlay_key(app: &mut App, key: KeyCode) {
                 }
                 _ => {
                     app.overlay = Some(crate::app::OverlayMode::AuthorInput { text });
+                }
+            }
+        }
+        crate::app::OverlayMode::PresetPicker { mut selected } => {
+            match key {
+                KeyCode::Esc => {
+                    // overlay already taken, just don't re-assign
+                }
+                KeyCode::Up => {
+                    if selected > 0 {
+                        selected -= 1;
+                    }
+                    app.overlay = Some(crate::app::OverlayMode::PresetPicker { selected });
+                }
+                KeyCode::Down => {
+                    if selected + 1 < crate::presets::PRESETS.len() {
+                        selected += 1;
+                    }
+                    app.overlay = Some(crate::app::OverlayMode::PresetPicker { selected });
+                }
+                KeyCode::Enter => {
+                    let preset_name = crate::presets::PRESETS[selected].name.to_string();
+                    app.overlay = Some(crate::app::OverlayMode::ProviderNameInput {
+                        preset: preset_name,
+                        text: String::new(),
+                    });
+                }
+                _ => {
+                    app.overlay = Some(crate::app::OverlayMode::PresetPicker { selected });
+                }
+            }
+        }
+        crate::app::OverlayMode::ProviderNameInput { mut text, preset } => {
+            match key {
+                KeyCode::Esc => {
+                    // overlay already taken, just don't re-assign
+                }
+                KeyCode::Enter => {
+                    let name = text.trim().to_string();
+                    if name.is_empty() {
+                        app.push_toast("Name cannot be empty".to_string(), true);
+                        app.overlay = Some(crate::app::OverlayMode::ProviderNameInput { preset, text });
+                    } else if crate::presets::is_reserved(&name) {
+                        app.push_toast(format!("'{name}' is a reserved name"), true);
+                        app.overlay = Some(crate::app::OverlayMode::ProviderNameInput { preset, text });
+                    } else if app.prefs.custom_providers.iter().any(|cp| cp.name == name) {
+                        app.push_toast(format!("'{name}' already exists"), true);
+                        app.overlay = Some(crate::app::OverlayMode::ProviderNameInput { preset, text });
+                    } else {
+                        let preset_entry = crate::presets::PRESETS.iter()
+                            .find(|p| p.name == preset.as_str());
+                        let template = match preset_entry {
+                            Some(p) => p.template.replace("{name}", &name),
+                            None => name.clone(),
+                        };
+                        app.overlay = Some(crate::app::OverlayMode::CommandTemplateInput {
+                            preset,
+                            name,
+                            text: template,
+                        });
+                    }
+                }
+                KeyCode::Backspace => {
+                    text.pop();
+                    app.overlay = Some(crate::app::OverlayMode::ProviderNameInput { preset, text });
+                }
+                KeyCode::Char(c) => {
+                    text.push(c);
+                    app.overlay = Some(crate::app::OverlayMode::ProviderNameInput { preset, text });
+                }
+                _ => {
+                    app.overlay = Some(crate::app::OverlayMode::ProviderNameInput { preset, text });
+                }
+            }
+        }
+        crate::app::OverlayMode::CommandTemplateInput { preset, name, mut text } => {
+            match key {
+                KeyCode::Esc => {
+                    // overlay already taken, just don't re-assign
+                }
+                KeyCode::Enter => {
+                    let template = text.trim().to_string();
+                    if template.is_empty() {
+                        app.push_toast("Command cannot be empty".to_string(), true);
+                        app.overlay = Some(crate::app::OverlayMode::CommandTemplateInput { preset, name, text });
+                    } else {
+                        let entry = crate::db::models::CustomProviderEntry {
+                            name: name.clone(),
+                            preset: preset.clone(),
+                            command_template: template,
+                            default_model: String::new(),
+                        };
+                        match app.db.add_custom_provider(&entry) {
+                            Ok(_) => {
+                                app.prefs.custom_providers = app.db.get_custom_providers().unwrap_or_default();
+                                app.push_toast(format!("Added provider: {}", name), false);
+                                // overlay already taken, don't re-assign (dismiss)
+                            }
+                            Err(e) => {
+                                app.push_toast(format!("Error: {e}"), true);
+                                app.overlay = Some(crate::app::OverlayMode::CommandTemplateInput { preset, name, text });
+                            }
+                        }
+                    }
+                }
+                KeyCode::Backspace => {
+                    text.pop();
+                    app.overlay = Some(crate::app::OverlayMode::CommandTemplateInput { preset, name, text });
+                }
+                KeyCode::Char(c) => {
+                    text.push(c);
+                    app.overlay = Some(crate::app::OverlayMode::CommandTemplateInput { preset, name, text });
+                }
+                _ => {
+                    app.overlay = Some(crate::app::OverlayMode::CommandTemplateInput { preset, name, text });
                 }
             }
         }
@@ -1043,7 +1169,7 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                 1 => app.prefs.keywords.len(),
                 2 => app.prefs.authors.len(),
                 3 => 4,
-                4 => 2, // provider (0) and language (1)
+                4 => 3, // provider (0), language (1), custom (2)
                 _ => 1,
             };
             if max > 0 && app.prefs.section_selected[sec] + 1 < max {
@@ -1098,7 +1224,13 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                     }
                 }
                 4 => {
-                    cycle_config_option(app, false);
+                    if app.prefs.section_selected[4] == 2 {
+                        if app.prefs.custom_provider_selected > 0 {
+                            app.prefs.custom_provider_selected -= 1;
+                        }
+                    } else {
+                        cycle_config_option(app, false);
+                    }
                 }
                 _ => {}
             }
@@ -1137,7 +1269,14 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                     }
                 }
                 4 => {
-                    cycle_config_option(app, true);
+                    if app.prefs.section_selected[4] == 2 {
+                        let max = app.prefs.custom_providers.len().saturating_sub(1);
+                        if app.prefs.custom_provider_selected < max {
+                            app.prefs.custom_provider_selected += 1;
+                        }
+                    } else {
+                        cycle_config_option(app, true);
+                    }
                 }
                 _ => {}
             }
@@ -1162,6 +1301,13 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                     app.overlay = Some(crate::app::OverlayMode::AuthorInput {
                         text: String::new(),
                     });
+                }
+                4 => {
+                    if app.prefs.section_selected[4] == 2 {
+                        app.overlay = Some(crate::app::OverlayMode::PresetPicker {
+                            selected: 0,
+                        });
+                    }
                 }
                 _ => {}
             }
@@ -1199,6 +1345,15 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                             .min(app.prefs.authors.len().saturating_sub(1));
                     }
                 }
+                4 => {
+                    if app.prefs.section_selected[4] == 2 {
+                        let custom_sel = app.prefs.custom_provider_selected;
+                        if let Some(cp) = app.prefs.custom_providers.get(custom_sel) {
+                            let name = cp.name.clone();
+                            app.confirm_action = Some(crate::app::ConfirmAction::RemoveCustomProvider(name));
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -1215,26 +1370,32 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                 .db
                 .get_setting("language", "en")
                 .unwrap_or_else(|_| "en".to_string());
+            app.prefs.custom_providers = app.db.get_custom_providers().unwrap_or_default();
         }
         _ => {}
     }
 }
 
-/// Cycle through config options for the currently selected config item (section 4).
-/// `forward=true` goes to the next option, `forward=false` goes to the previous.
 fn cycle_config_option(app: &mut App, forward: bool) {
-    let item = app.prefs.section_selected[4]; // 0=provider, 1=language
+    let item = app.prefs.section_selected[4];
     match item {
         0 => {
-            let providers = ["gemini", "claude", "ollama", "openai", "opencode", "custom"];
-            let current = providers.iter().position(|&p| p == app.prefs.provider).unwrap_or(0);
+            // Build provider list: built-in + custom names
+            let mut providers: Vec<String> = vec![
+                "gemini".into(), "claude".into(), "ollama".into(),
+                "openai".into(), "opencode".into(),
+            ];
+            for cp in &app.prefs.custom_providers {
+                providers.push(cp.name.clone());
+            }
+            let current = providers.iter().position(|p| p == &app.prefs.provider).unwrap_or(0);
             let next = if forward {
                 (current + 1) % providers.len()
             } else {
                 if current == 0 { providers.len() - 1 } else { current - 1 }
             };
-            app.prefs.provider = providers[next].to_string();
-            let _ = app.db.set_setting("ai_provider", providers[next]);
+            app.prefs.provider = providers[next].clone();
+            let _ = app.db.set_setting("ai_provider", &providers[next]);
             app.push_toast(format!("Provider: {}", providers[next]), false);
         }
         1 => {

@@ -161,12 +161,29 @@ PROVIDERS: dict[AIProviderType, AIProvider] = {
 }
 
 
-def get_provider(provider_type: AIProviderType) -> AIProvider:
-    """Return a provider instance. If custom, load the template from settings."""
-    provider = PROVIDERS[provider_type]
-    if provider_type == AIProviderType.CUSTOM:
-        from .settings_service import SettingsService
+def get_provider(provider_name: str | AIProviderType) -> AIProvider:
+    """Return a provider instance. Checks built-in registry first, then custom_providers table."""
+    # Normalize to string
+    name = provider_name.value if isinstance(provider_name, AIProviderType) else provider_name
 
-        template = SettingsService().get("custom_command")
-        provider.configure(template)
-    return provider
+    # Try built-in registry
+    for ptype, prov in PROVIDERS.items():
+        if ptype.value == name:
+            if ptype == AIProviderType.CUSTOM:
+                from .settings_service import SettingsService
+
+                template = SettingsService().get("custom_command")
+                prov.configure(template)
+            return prov
+
+    # Try custom_providers table
+    from .settings_service import SettingsService
+
+    for cp in SettingsService().get_custom_providers():
+        if cp.name == name:
+            provider = CustomProvider()
+            provider.configure(cp.command_template)
+            return provider
+
+    # Fallback to gemini
+    return PROVIDERS[AIProviderType.GEMINI]

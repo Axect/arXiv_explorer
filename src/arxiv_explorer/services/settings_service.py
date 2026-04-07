@@ -70,9 +70,9 @@ class SettingsService:
                 settings[row["key"]] = row["value"]
         return settings
 
-    def get_provider(self) -> AIProviderType:
-        """Get the current AI provider."""
-        return AIProviderType(self.get("ai_provider"))
+    def get_provider(self) -> str:
+        """Return the active provider name as a string."""
+        return self.get("ai_provider")
 
     def get_model(self) -> str:
         """Get the current AI model override."""
@@ -104,3 +104,47 @@ class SettingsService:
     def reset_weights(self) -> None:
         """Reset recommendation weights to defaults."""
         self.set_weights(DEFAULT_WEIGHTS)
+
+    # Reserved names that cannot be used for custom providers
+    RESERVED_PROVIDERS = {"gemini", "claude", "openai", "ollama", "opencode", "custom"}
+
+    def get_custom_providers(self) -> list:
+        """Return all custom providers as list of CustomProviderConfig."""
+        from ..core.models import CustomProviderConfig
+
+        with get_connection() as conn:
+            rows = conn.execute(
+                "SELECT name, preset, command_template, default_model FROM custom_providers ORDER BY name"
+            ).fetchall()
+            return [
+                CustomProviderConfig(
+                    name=r["name"],
+                    preset=r["preset"],
+                    command_template=r["command_template"],
+                    default_model=r["default_model"] or "",
+                )
+                for r in rows
+            ]
+
+    def add_custom_provider(
+        self, name: str, preset: str, command_template: str, default_model: str = ""
+    ) -> None:
+        """Register a custom provider. Raises ValueError if name is reserved or duplicate."""
+        if name.lower() in self.RESERVED_PROVIDERS:
+            raise ValueError(f"'{name}' is a reserved provider name")
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO custom_providers (name, preset, command_template, default_model) "
+                "VALUES (?, ?, ?, ?)",
+                (name, preset, command_template, default_model),
+            )
+            conn.commit()
+
+    def remove_custom_provider(self, name: str) -> None:
+        """Remove a custom provider. If it's the active provider, switch to gemini."""
+        with get_connection() as conn:
+            conn.execute("DELETE FROM custom_providers WHERE name = ?", (name,))
+            conn.commit()
+        # If active provider was deleted, reset to gemini
+        if self.get("ai_provider") == name:
+            self.set("ai_provider", "gemini")

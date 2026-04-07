@@ -239,6 +239,12 @@ def show(
             arxiv_id, paper.title, paper.abstract, detailed=detailed, force=force
         )
 
+    if (summary or detailed) and paper_summary is None:
+        import sys
+
+        print("Failed to generate summary (check provider settings)", file=sys.stderr)
+        raise typer.Exit(1)
+
     paper_translation = None
     if translate:
         translator = TranslationService()
@@ -251,6 +257,12 @@ def show(
             paper_translation = translator.translate(
                 arxiv_id, paper.title, paper.abstract, force=force
             )
+
+    if translate and paper_translation is None:
+        import sys
+
+        print("Failed to generate translation (check provider settings)", file=sys.stderr)
+        raise typer.Exit(1)
 
     print_paper_detail(paper, paper_summary, paper_translation)
 

@@ -102,6 +102,14 @@ pub struct AppSetting {
     pub value: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct CustomProviderEntry {
+    pub name: String,
+    pub preset: String,
+    pub command_template: String,
+    pub default_model: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScoredPaper {
     pub arxiv_id: String,
