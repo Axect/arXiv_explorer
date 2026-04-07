@@ -146,8 +146,12 @@ class CustomProvider(AIProvider):
                 replaced = replaced.replace("{model}", model)
             else:
                 replaced = replaced.replace("{model}", "")
-            if replaced:
-                result.append(replaced)
+            if not replaced:
+                # Drop the preceding flag (e.g. --model) when its value placeholder is empty
+                if result and result[-1].startswith("-"):
+                    result.pop()
+                continue
+            result.append(replaced)
         return result
 
 
