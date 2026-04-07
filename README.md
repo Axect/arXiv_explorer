@@ -47,11 +47,14 @@ uv sync
 cd tui-rs && cargo build --release && cd ..
 ```
 
+> **Tip:** All commands below use `uv run axp` which works without activating a virtual environment.
+> For the shorter `axp`, activate the venv first (`source .venv/bin/activate`) or install globally with `uv tool install -e .`.
+
 <details>
 <summary>Shell completion (fish / bash / zsh)</summary>
 
 ```bash
-axp --install-completion fish   # or bash, zsh
+uv run axp --install-completion fish   # or bash, zsh
 ```
 
 </details>
@@ -60,21 +63,21 @@ axp --install-completion fish   # or bash, zsh
 
 ```bash
 # 1. Set your research interests
-axp prefs add-category hep-ph --priority 2
-axp prefs add-keyword "deep learning" --weight 4
+uv run axp prefs add-category hep-ph --priority 2
+uv run axp prefs add-keyword "deep learning" --weight 4
 
 # 2. Fetch and rank recent papers
-axp daily --days 7 --limit 10
+uv run axp daily --days 7 --limit 10
 
 # 3. Launch the TUI
-axp tui
+uv run axp tui
 ```
 
 See [QUICKSTART.md](QUICKSTART.md) for a full walkthrough.
 
 ## TUI
 
-Launch with `axp tui`. Built with Rust (Ratatui + Crossterm) for snappy navigation.
+Launch with `uv run axp tui`. Built with Rust (Ratatui + Crossterm) for snappy navigation.
 
 | Tab | Key | What you can do |
 |-----|-----|-----------------|
