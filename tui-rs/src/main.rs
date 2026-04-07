@@ -153,9 +153,9 @@ fn render(f: &mut Frame, app: &mut App) {
             app::OverlayMode::CategoryPicker { .. } => render_category_picker(f, app),
             app::OverlayMode::KeywordInput { .. } => render_keyword_input(f, app),
             app::OverlayMode::AuthorInput { .. } => render_author_input(f, app),
-            app::OverlayMode::PresetPicker { .. }
-            | app::OverlayMode::ProviderNameInput { .. }
-            | app::OverlayMode::CommandTemplateInput { .. } => {}
+            app::OverlayMode::PresetPicker { .. } => render_preset_picker(f, app),
+            app::OverlayMode::ProviderNameInput { .. } => render_provider_name_input(f, app),
+            app::OverlayMode::CommandTemplateInput { .. } => render_command_template_input(f, app),
         }
     }
 
@@ -1740,6 +1740,183 @@ fn render_author_input(f: &mut Frame, app: &App) {
             Paragraph::new(" [Enter] add  [Esc] close")
                 .style(Style::default().fg(TEXT_DIM).bg(SURFACE)),
             chunks[2],
+        );
+    }
+}
+
+// =============================================================================
+// Preset picker overlay
+// =============================================================================
+
+fn render_preset_picker(f: &mut Frame, app: &App) {
+    let area = f.area();
+    let w = (area.width * 60 / 100).max(50).min(area.width);
+    let h: u16 = (crate::presets::PRESETS.len() as u16 + 4).min(area.height);
+    let x = (area.width.saturating_sub(w)) / 2;
+    let y = (area.height.saturating_sub(h)) / 2;
+    let overlay = Rect::new(x, y, w, h);
+
+    f.render_widget(Clear, overlay);
+
+    let block = Block::default()
+        .title(" Select Preset ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(ACCENT))
+        .style(Style::default().bg(BG));
+    let inner = block.inner(overlay);
+    f.render_widget(block, overlay);
+
+    if let Some(crate::app::OverlayMode::PresetPicker { selected }) = &app.overlay {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0), Constraint::Length(1)])
+            .split(inner);
+
+        let mut lines: Vec<Line> = Vec::new();
+        for (i, preset) in crate::presets::PRESETS.iter().enumerate() {
+            let is_sel = i == *selected;
+            let prefix = if is_sel { "► " } else { "  " };
+            let style = if is_sel {
+                Style::default().fg(BG).bg(ACCENT).bold()
+            } else {
+                Style::default().fg(TEXT).bg(BG)
+            };
+            lines.push(Line::from(Span::styled(
+                format!("{prefix}{:<14} {}", preset.name, preset.description),
+                style,
+            )));
+        }
+        f.render_widget(Paragraph::new(lines).style(Style::default().bg(BG)), chunks[0]);
+
+        f.render_widget(
+            Paragraph::new(" [↑↓] navigate  [Enter] select  [Esc] close")
+                .style(Style::default().fg(TEXT_DIM).bg(SURFACE)),
+            chunks[1],
+        );
+    }
+}
+
+// =============================================================================
+// Provider name input overlay
+// =============================================================================
+
+fn render_provider_name_input(f: &mut Frame, app: &App) {
+    let area = f.area();
+    let w: u16 = 50;
+    let h: u16 = 6;
+    let x = (area.width.saturating_sub(w)) / 2;
+    let y = (area.height.saturating_sub(h)) / 2;
+    let overlay = Rect::new(x, y, w, h);
+
+    f.render_widget(Clear, overlay);
+
+    let block = Block::default()
+        .title(" Provider Name ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(ACCENT))
+        .style(Style::default().bg(BG));
+    let inner = block.inner(overlay);
+    f.render_widget(block, overlay);
+
+    if let Some(crate::app::OverlayMode::ProviderNameInput { preset, text }) = &app.overlay {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
+            ])
+            .split(inner);
+
+        let preset_line = Line::from(vec![
+            Span::styled(" Preset: ", Style::default().fg(TEXT_DIM)),
+            Span::styled(preset.as_str(), Style::default().fg(ACCENT)),
+        ]);
+        f.render_widget(Paragraph::new(preset_line).style(Style::default().bg(BG)), chunks[0]);
+
+        let name_line = Line::from(vec![
+            Span::styled(" Name:   ", Style::default().fg(ACCENT).bold()),
+            Span::styled(format!("{text}_"), Style::default().fg(TEXT)),
+        ]);
+        f.render_widget(Paragraph::new(name_line).style(Style::default().bg(BG)), chunks[1]);
+
+        f.render_widget(
+            Paragraph::new("─".repeat(chunks[2].width as usize))
+                .style(Style::default().fg(TEXT_DIM).bg(BG)),
+            chunks[2],
+        );
+
+        f.render_widget(
+            Paragraph::new(" [Enter] next  [Esc] cancel")
+                .style(Style::default().fg(TEXT_DIM).bg(SURFACE)),
+            chunks[3],
+        );
+    }
+}
+
+// =============================================================================
+// Command template input overlay
+// =============================================================================
+
+fn render_command_template_input(f: &mut Frame, app: &App) {
+    let area = f.area();
+    let w = (area.width * 80 / 100).max(60).min(area.width);
+    let h: u16 = 8;
+    let x = (area.width.saturating_sub(w)) / 2;
+    let y = (area.height.saturating_sub(h)) / 2;
+    let overlay = Rect::new(x, y, w, h);
+
+    f.render_widget(Clear, overlay);
+
+    let block = Block::default()
+        .title(" Command Template ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(ACCENT))
+        .style(Style::default().bg(BG));
+    let inner = block.inner(overlay);
+    f.render_widget(block, overlay);
+
+    if let Some(crate::app::OverlayMode::CommandTemplateInput { preset: _, name, text }) = &app.overlay {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
+            ])
+            .split(inner);
+
+        let name_line = Line::from(vec![
+            Span::styled(" Name:    ", Style::default().fg(TEXT_DIM)),
+            Span::styled(name.as_str(), Style::default().fg(ACCENT)),
+        ]);
+        f.render_widget(Paragraph::new(name_line).style(Style::default().bg(BG)), chunks[0]);
+
+        let hint_line = Line::from(vec![
+            Span::styled(" Placeholders: ", Style::default().fg(TEXT_DIM)),
+            Span::styled("{prompt} {model}", Style::default().fg(AUTHOR_HL)),
+        ]);
+        f.render_widget(Paragraph::new(hint_line).style(Style::default().bg(BG)), chunks[1]);
+
+        let cmd_line = Line::from(vec![
+            Span::styled(" Command: ", Style::default().fg(ACCENT).bold()),
+            Span::styled(format!("{text}_"), Style::default().fg(TEXT)),
+        ]);
+        f.render_widget(Paragraph::new(cmd_line).style(Style::default().bg(BG)), chunks[2]);
+
+        f.render_widget(
+            Paragraph::new("─".repeat(chunks[3].width as usize))
+                .style(Style::default().fg(TEXT_DIM).bg(BG)),
+            chunks[3],
+        );
+
+        f.render_widget(
+            Paragraph::new(" [Enter] save  [Esc] cancel")
+                .style(Style::default().fg(TEXT_DIM).bg(SURFACE)),
+            chunks[4],
         );
     }
 }
