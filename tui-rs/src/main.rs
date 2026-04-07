@@ -12,10 +12,11 @@ use ratatui::{
 };
 
 mod app;
+mod categories;
 mod commands;
 mod db;
-mod categories;
 mod events;
+mod presets;
 
 use app::{App, ConfirmAction, Tab};
 

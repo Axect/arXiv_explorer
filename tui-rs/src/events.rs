@@ -1226,21 +1226,26 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
     }
 }
 
-/// Cycle through config options for the currently selected config item (section 4).
-/// `forward=true` goes to the next option, `forward=false` goes to the previous.
 fn cycle_config_option(app: &mut App, forward: bool) {
-    let item = app.prefs.section_selected[4]; // 0=provider, 1=language
+    let item = app.prefs.section_selected[4];
     match item {
         0 => {
-            let providers = ["gemini", "claude", "ollama", "openai", "opencode", "custom"];
-            let current = providers.iter().position(|&p| p == app.prefs.provider).unwrap_or(0);
+            // Build provider list: built-in + custom names
+            let mut providers: Vec<String> = vec![
+                "gemini".into(), "claude".into(), "ollama".into(),
+                "openai".into(), "opencode".into(),
+            ];
+            for cp in &app.prefs.custom_providers {
+                providers.push(cp.name.clone());
+            }
+            let current = providers.iter().position(|p| p == &app.prefs.provider).unwrap_or(0);
             let next = if forward {
                 (current + 1) % providers.len()
             } else {
                 if current == 0 { providers.len() - 1 } else { current - 1 }
             };
-            app.prefs.provider = providers[next].to_string();
-            let _ = app.db.set_setting("ai_provider", providers[next]);
+            app.prefs.provider = providers[next].clone();
+            let _ = app.db.set_setting("ai_provider", &providers[next]);
             app.push_toast(format!("Provider: {}", providers[next]), false);
         }
         1 => {
