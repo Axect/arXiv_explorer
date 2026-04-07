@@ -138,12 +138,13 @@ class CustomProvider(AIProvider):
     def build_command(self, prompt: str, model: str = "") -> list[str]:
         if not self._template:
             return []
+        effective_model = model or self.default_model
         tokens = shlex.split(self._template)
         result = []
         for token in tokens:
             replaced = token.replace("{prompt}", prompt)
-            if model:
-                replaced = replaced.replace("{model}", model)
+            if effective_model:
+                replaced = replaced.replace("{model}", effective_model)
             else:
                 replaced = replaced.replace("{model}", "")
             if not replaced:
@@ -187,6 +188,7 @@ def get_provider(provider_name: str | AIProviderType) -> AIProvider:
         if cp.name == name:
             provider = CustomProvider()
             provider.configure(cp.command_template)
+            provider.default_model = cp.default_model
             return provider
 
     # Fallback to gemini

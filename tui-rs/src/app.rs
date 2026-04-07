@@ -251,6 +251,12 @@ pub enum OverlayMode {
         name: String,
         text: String,
     },
+    DefaultModelInput {
+        preset: String,
+        name: String,
+        command_template: String,
+        text: String,
+    },
 }
 
 // =============================================================================

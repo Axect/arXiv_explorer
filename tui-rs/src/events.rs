@@ -382,23 +382,16 @@ pub fn handle_overlay_key(app: &mut App, key: KeyCode) {
                         app.push_toast("Command cannot be empty".to_string(), true);
                         app.overlay = Some(crate::app::OverlayMode::CommandTemplateInput { preset, name, text });
                     } else {
-                        let entry = crate::db::models::CustomProviderEntry {
-                            name: name.clone(),
-                            preset: preset.clone(),
+                        let preset_model = crate::presets::PRESETS.iter()
+                            .find(|p| p.name == preset.as_str())
+                            .map(|p| p.default_model.to_string())
+                            .unwrap_or_default();
+                        app.overlay = Some(crate::app::OverlayMode::DefaultModelInput {
+                            preset,
+                            name,
                             command_template: template,
-                            default_model: String::new(),
-                        };
-                        match app.db.add_custom_provider(&entry) {
-                            Ok(_) => {
-                                app.prefs.custom_providers = app.db.get_custom_providers().unwrap_or_default();
-                                app.push_toast(format!("Added provider: {}", name), false);
-                                // overlay already taken, don't re-assign (dismiss)
-                            }
-                            Err(e) => {
-                                app.push_toast(format!("Error: {e}"), true);
-                                app.overlay = Some(crate::app::OverlayMode::CommandTemplateInput { preset, name, text });
-                            }
-                        }
+                            text: preset_model,
+                        });
                     }
                 }
                 KeyCode::Backspace => {
@@ -411,6 +404,44 @@ pub fn handle_overlay_key(app: &mut App, key: KeyCode) {
                 }
                 _ => {
                     app.overlay = Some(crate::app::OverlayMode::CommandTemplateInput { preset, name, text });
+                }
+            }
+        }
+        crate::app::OverlayMode::DefaultModelInput { preset, name, command_template, mut text } => {
+            match key {
+                KeyCode::Esc => {
+                    // overlay already taken, just don't re-assign
+                }
+                KeyCode::Enter => {
+                    let model = text.trim().to_string();
+                    let entry = crate::db::models::CustomProviderEntry {
+                        name: name.clone(),
+                        preset: preset.clone(),
+                        command_template: command_template.clone(),
+                        default_model: model,
+                    };
+                    match app.db.add_custom_provider(&entry) {
+                        Ok(_) => {
+                            app.prefs.custom_providers = app.db.get_custom_providers().unwrap_or_default();
+                            app.push_toast(format!("Added provider: {}", name), false);
+                            // overlay already taken, don't re-assign (dismiss)
+                        }
+                        Err(e) => {
+                            app.push_toast(format!("Error: {e}"), true);
+                            app.overlay = Some(crate::app::OverlayMode::DefaultModelInput { preset, name, command_template, text });
+                        }
+                    }
+                }
+                KeyCode::Backspace => {
+                    text.pop();
+                    app.overlay = Some(crate::app::OverlayMode::DefaultModelInput { preset, name, command_template, text });
+                }
+                KeyCode::Char(c) => {
+                    text.push(c);
+                    app.overlay = Some(crate::app::OverlayMode::DefaultModelInput { preset, name, command_template, text });
+                }
+                _ => {
+                    app.overlay = Some(crate::app::OverlayMode::DefaultModelInput { preset, name, command_template, text });
                 }
             }
         }
