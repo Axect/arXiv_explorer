@@ -30,15 +30,21 @@ impl Database {
     }
 
     /// Return the default database path.
-    /// Checks AXP_DB env var first, then ~/.config/arxiv-explorer/explorer.db
-    /// Uses ~/.config/ explicitly (not dirs::config_dir) to stay consistent
-    /// with the Python side on all platforms including macOS.
+    /// Checks AXP_DB env var first, then XDG_DATA_HOME/arxiv-explorer/explorer.db,
+    /// then ~/.local/share/arxiv-explorer/explorer.db.
     pub fn default_path() -> PathBuf {
         if let Ok(p) = std::env::var("AXP_DB") {
             return PathBuf::from(p);
         }
+        // XDG_DATA_HOME or fallback to ~/.local/share
+        if let Ok(data_home) = std::env::var("XDG_DATA_HOME") {
+            return PathBuf::from(data_home)
+                .join("arxiv-explorer")
+                .join("explorer.db");
+        }
         let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-        home.join(".config")
+        home.join(".local")
+            .join("share")
             .join("arxiv-explorer")
             .join("explorer.db")
     }
