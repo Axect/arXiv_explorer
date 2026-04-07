@@ -53,6 +53,7 @@ class RecommendationEngine:
         user_profile: np.ndarray | None,
         preferred_categories: list[PreferredCategory],
         keywords: list[KeywordInterest],
+        use_recency: bool = True,
     ) -> list[RecommendedPaper]:
         """Assign recommendation scores to papers."""
         weights = self._settings.get_weights()
@@ -93,10 +94,11 @@ class RecommendationEngine:
                     score += keyword_weight * (weight / 5.0)
 
             # 4. Recency bonus
-            days_old = (datetime.now() - paper.published).days
-            if days_old < 30:
-                recency_factor = 1 - (days_old / 30)
-                score += recency_weight * recency_factor
+            if use_recency:
+                days_old = (datetime.now() - paper.published).days
+                if days_old < 30:
+                    recency_factor = 1 - (days_old / 30)
+                    score += recency_weight * recency_factor
 
             results.append(RecommendedPaper(paper=paper, score=score))
 

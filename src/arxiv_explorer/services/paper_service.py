@@ -76,22 +76,22 @@ class PaperService:
     ) -> list[RecommendedPaper]:
         """Search papers."""
         if from_arxiv:
-            papers = self.arxiv_client.search(query, max_results=limit)
+            papers = self.arxiv_client.search(query, max_results=limit, sort_by="relevance")
         else:
             # TODO: Implement local DB search
-            papers = self.arxiv_client.search(query, max_results=limit)
+            papers = self.arxiv_client.search(query, max_results=limit, sort_by="relevance")
 
-        # Calculate recommendation scores
+        # Calculate recommendation scores (no recency bias for search)
         engine = get_recommendation_engine()
         categories = self.preference_service.get_categories()
         keywords = self.preference_service.get_keywords()
 
-        # Simple scoring (without user profile)
         recommended = engine.score_papers(
             papers=papers,
             user_profile=None,
             preferred_categories=categories,
             keywords=keywords,
+            use_recency=False,
         )
 
         return recommended[:limit]
