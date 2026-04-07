@@ -24,4 +24,7 @@ wheels/
 # Local design docs (superpowers plugin)
 docs/superpowers/
 .superpowers/
+
+# Generated output
 reviews/
+papers/

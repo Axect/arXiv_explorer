@@ -71,8 +71,17 @@ pub fn run_translate(tx: mpsc::UnboundedSender<AppEvent>, job_id: String, arxiv_
 
 pub fn run_review(tx: mpsc::UnboundedSender<AppEvent>, job_id: String, arxiv_id: String) {
     tokio::spawn(async move {
+        // Save review to ./reviews/<id>_review.md (relative to cwd)
+        let reviews_dir = std::path::PathBuf::from("reviews");
+        let _ = tokio::fs::create_dir_all(&reviews_dir).await;
+        let normalized = arxiv_id.replace("/", "_");
+        let out_path = reviews_dir.join(format!("{normalized}_review.md"));
+
         let output = Command::new("uv")
-            .args(["run", "axp", "review", &arxiv_id, "--force"])
+            .args([
+                "run", "axp", "review", &arxiv_id, "--force",
+                "--output", &out_path.to_string_lossy(),
+            ])
             .output()
             .await;
 
@@ -80,7 +89,7 @@ pub fn run_review(tx: mpsc::UnboundedSender<AppEvent>, job_id: String, arxiv_id:
             Ok(out) if out.status.success() => {
                 let _ = tx.send(AppEvent::JobCompleted {
                     job_id,
-                    message: format!("Review ready for {arxiv_id}"),
+                    message: format!("Review saved: {}", out_path.display()),
                 });
             }
             Ok(out) => {
