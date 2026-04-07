@@ -24,3 +24,4 @@ wheels/
 # Local design docs (superpowers plugin)
 docs/superpowers/
 .superpowers/
+reviews/
