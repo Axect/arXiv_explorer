@@ -24,7 +24,9 @@ impl Database {
         }
         let conn = Connection::open(path)?;
         conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
-        Ok(Self { conn })
+        let db = Self { conn };
+        db.ensure_custom_providers_table()?;
+        Ok(db)
     }
 
     /// Return the default database path.
@@ -472,6 +474,56 @@ impl Database {
         self.set_setting("weight_category", &weights[1].to_string())?;
         self.set_setting("weight_keyword", &weights[2].to_string())?;
         self.set_setting("weight_recency", &weights[3].to_string())?;
+        Ok(())
+    }
+
+    // =========================================================================
+    // Custom Providers
+    // =========================================================================
+
+    pub fn ensure_custom_providers_table(&self) -> Result<()> {
+        self.conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS custom_providers (
+                name TEXT PRIMARY KEY NOT NULL,
+                preset TEXT NOT NULL,
+                command_template TEXT NOT NULL,
+                default_model TEXT DEFAULT '',
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );"
+        )?;
+        Ok(())
+    }
+
+    pub fn get_custom_providers(&self) -> Result<Vec<CustomProviderEntry>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT name, preset, command_template, default_model FROM custom_providers ORDER BY name"
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(CustomProviderEntry {
+                name: row.get(0)?,
+                preset: row.get(1)?,
+                command_template: row.get(2)?,
+                default_model: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
+            })
+        })?;
+        rows.collect()
+    }
+
+    pub fn add_custom_provider(&self, entry: &CustomProviderEntry) -> Result<()> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO custom_providers (name, preset, command_template, default_model) VALUES (?1, ?2, ?3, ?4)",
+            params![entry.name, entry.preset, entry.command_template, entry.default_model],
+        )?;
+        Ok(())
+    }
+
+    pub fn remove_custom_provider(&self, name: &str) -> Result<()> {
+        self.conn.execute("DELETE FROM custom_providers WHERE name = ?1", params![name])?;
+        // If active provider was deleted, reset to gemini
+        let current = self.get_setting("ai_provider", "gemini")?;
+        if current == name {
+            self.set_setting("ai_provider", "gemini")?;
+        }
         Ok(())
     }
 
