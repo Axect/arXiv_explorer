@@ -286,7 +286,7 @@ class TestMarkdownRendering:
         md = review_service.render_markdown(review)
         assert sample_paper.title in md
         assert sample_paper.arxiv_id in md
-        assert "Authors:" in md
+        assert "**Authors**" in md
 
     def test_renders_executive_summary(self, review_service, sample_paper):
         review = self._make_review(
@@ -367,11 +367,11 @@ class TestMarkdownRendering:
         review = self._make_review(sample_paper)
         review.source_type = "full_text"
         md = review_service.render_markdown(review)
-        assert "Full text analysis" in md
+        assert "Full text" in md
 
         review.source_type = "abstract"
         md = review_service.render_markdown(review)
-        assert "Abstract-only analysis" in md
+        assert "Abstract only" in md
 
 
 # ── Model Tests ───────────────────────────────────────────────────────
@@ -463,10 +463,28 @@ class TestGenerateReviewMocked:
                 "ablation_studies": "",
                 "notable_findings": [],
             },
+            ReviewSectionType.REPRODUCIBILITY: {
+                "code_availability": "not_mentioned",
+                "data_availability": "not_mentioned",
+                "methodology_clarity": "insufficient",
+                "hyperparameter_reporting": "minimal",
+                "computational_requirements": "not_mentioned",
+                "variance_reporting": "not_addressed",
+                "reproducibility_score": "low",
+                "missing_details": [],
+            },
             ReviewSectionType.STRENGTHS_WEAKNESSES: {
                 "strengths": [],
                 "weaknesses": [],
                 "overall_assessment": "",
+            },
+            ReviewSectionType.IMPACT_SIGNIFICANCE: {
+                "field_impact": "",
+                "practical_applications": [],
+                "broader_impact": "",
+                "limitations_of_impact": "",
+                "future_directions": [],
+                "significance_rating": "incremental",
             },
             ReviewSectionType.RELATED_WORK: {
                 "research_areas": [],
@@ -475,6 +493,16 @@ class TestGenerateReviewMocked:
             },
             ReviewSectionType.GLOSSARY: {"terms": []},
             ReviewSectionType.QUESTIONS: {"questions": []},
+            ReviewSectionType.READING_GUIDE: {
+                "essential_sections": [],
+                "skip_if_familiar": [],
+                "key_figures": [],
+                "key_tables": [],
+                "prerequisite_knowledge": [],
+                "suggested_reading_order": [],
+                "time_estimate_minutes": 30,
+                "difficulty_level": "intermediate",
+            },
         }
 
     def test_generates_with_abstract_only(self, tmp_config: Config, sample_paper):
@@ -522,8 +550,8 @@ class TestGenerateReviewMocked:
         assert review.sections[ReviewSectionType.EXECUTIVE_SUMMARY]["tldr"] == "Cached"
         # AI should have been called for remaining sections, minus:
         # - 1 cached (executive_summary)
-        # - 3 empty sections in abstract-only mode (figures, tables, math)
-        assert len(invoke_calls) == len(ReviewSectionType) - 1 - 3
+        # - 4 empty sections in abstract-only mode (figures, tables, math, reproducibility)
+        assert len(invoke_calls) == len(ReviewSectionType) - 1 - 4
 
     def test_force_regenerates_cached(self, tmp_config: Config, sample_paper):
         service = PaperReviewService()
@@ -549,9 +577,9 @@ class TestGenerateReviewMocked:
         service._invoke_ai = mock_invoke
 
         review = service.generate_review(sample_paper, force=True)
-        # With force=True, AI called for all sections except 3 empty
-        # (figures, tables, math) which get empty data in abstract-only mode
-        assert call_count[0] == len(ReviewSectionType) - 3
+        # With force=True, AI called for all sections except 4 empty
+        # (figures, tables, math, reproducibility) which get empty data in abstract-only mode
+        assert call_count[0] == len(ReviewSectionType) - 4
         assert review.sections[ReviewSectionType.EXECUTIVE_SUMMARY]["tldr"] == "Test"
 
     def test_callbacks_invoked(self, tmp_config: Config, sample_paper):

@@ -26,13 +26,16 @@ _SECTION_NAMES: dict[ReviewSectionType, str] = {
     ReviewSectionType.SECTION_SUMMARIES: "Section Summaries",
     ReviewSectionType.METHODOLOGY: "Methodology Analysis",
     ReviewSectionType.MATH_FORMULATIONS: "Math Formulations",
-    ReviewSectionType.FIGURES: "Figure Descriptions",
-    ReviewSectionType.TABLES: "Table Descriptions",
+    ReviewSectionType.FIGURES: "Figure Analysis",
+    ReviewSectionType.TABLES: "Table Analysis",
     ReviewSectionType.EXPERIMENTAL_RESULTS: "Experimental Results",
+    ReviewSectionType.REPRODUCIBILITY: "Reproducibility Assessment",
     ReviewSectionType.STRENGTHS_WEAKNESSES: "Strengths & Weaknesses",
+    ReviewSectionType.IMPACT_SIGNIFICANCE: "Impact & Significance",
     ReviewSectionType.RELATED_WORK: "Related Work",
     ReviewSectionType.GLOSSARY: "Glossary",
-    ReviewSectionType.QUESTIONS: "Questions",
+    ReviewSectionType.QUESTIONS: "Questions for Authors",
+    ReviewSectionType.READING_GUIDE: "Reading Guide",
 }
 
 
