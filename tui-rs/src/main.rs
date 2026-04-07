@@ -1119,7 +1119,7 @@ fn render_prefs(f: &mut Frame, app: &App, area: Rect) {
     // Config
     {
         let block = Block::default()
-            .title(" Config ")
+            .title(" Config [a:Add Del:Rm] ")
             .borders(Borders::ALL)
             .border_style(sec_border(4))
             .style(Style::default().bg(BG));
@@ -1129,29 +1129,47 @@ fn render_prefs(f: &mut Frame, app: &App, area: Rect) {
         let focused = app.prefs.focus_section == 4;
         let sel = app.prefs.section_selected[4];
 
-        let provider_style = if focused && sel == 0 {
-            Style::default().fg(ACCENT).bold()
-        } else {
-            Style::default().fg(TEXT)
+        let item_style = |idx: usize| -> Style {
+            if focused && sel == idx {
+                Style::default().fg(ACCENT).bold()
+            } else {
+                Style::default().fg(TEXT)
+            }
         };
-        let language_style = if focused && sel == 1 {
-            Style::default().fg(ACCENT).bold()
-        } else {
-            Style::default().fg(TEXT)
+        let prefix = |idx: usize| -> &str {
+            if focused && sel == idx { "► " } else { "  " }
         };
-        let provider_prefix = if focused && sel == 0 { "► " } else { "  " };
-        let language_prefix = if focused && sel == 1 { "► " } else { "  " };
+
+        // Custom providers display
+        let custom_names: Vec<String> = app.prefs.custom_providers.iter().map(|cp| cp.name.clone()).collect();
+        let custom_display = if custom_names.is_empty() {
+            "(none)".to_string()
+        } else {
+            let cp_sel = app.prefs.custom_provider_selected;
+            custom_names.iter().enumerate().map(|(i, n)| {
+                if focused && sel == 2 && i == cp_sel {
+                    format!("[{n}]")
+                } else {
+                    n.clone()
+                }
+            }).collect::<Vec<_>>().join(", ")
+        };
 
         let lines = vec![
             Line::from(vec![
-                Span::styled(provider_prefix, provider_style),
+                Span::styled(prefix(0), item_style(0)),
                 Span::styled("Provider: ", Style::default().fg(ACCENT).bold()),
-                Span::styled(app.prefs.provider.clone(), provider_style),
+                Span::styled(app.prefs.provider.clone(), item_style(0)),
             ]),
             Line::from(vec![
-                Span::styled(language_prefix, language_style),
+                Span::styled(prefix(1), item_style(1)),
                 Span::styled("Language: ", Style::default().fg(ACCENT).bold()),
-                Span::styled(app.prefs.language.clone(), language_style),
+                Span::styled(app.prefs.language.clone(), item_style(1)),
+            ]),
+            Line::from(vec![
+                Span::styled(prefix(2), item_style(2)),
+                Span::styled("Custom:   ", Style::default().fg(ACCENT).bold()),
+                Span::styled(custom_display, item_style(2)),
             ]),
         ];
         f.render_widget(Paragraph::new(lines).style(Style::default().bg(BG)), inner);
