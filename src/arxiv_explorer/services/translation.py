@@ -73,7 +73,7 @@ Respond in this exact JSON format:
             provider = get_provider(settings.get_provider())
             if not provider.is_available():
                 import sys
-                print(f"Translation failed: provider not available", file=sys.stderr)
+                print("Translation failed: provider not available", file=sys.stderr)
                 return None
             output = provider.invoke(
                 prompt,
@@ -82,7 +82,7 @@ Respond in this exact JSON format:
             )
             if output is None:
                 import sys
-                print(f"Translation failed: provider returned no output", file=sys.stderr)
+                print("Translation failed: provider returned no output", file=sys.stderr)
                 return None
 
             # Extract JSON block

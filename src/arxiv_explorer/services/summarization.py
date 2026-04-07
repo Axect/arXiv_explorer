@@ -64,7 +64,7 @@ Output only JSON in the following format (no other text):
             provider = get_provider(settings.get_provider())
             if not provider.is_available():
                 import sys
-                print(f"Summary generation failed: provider not available", file=sys.stderr)
+                print("Summary generation failed: provider not available", file=sys.stderr)
                 return None
             output = provider.invoke(
                 prompt,
@@ -73,7 +73,7 @@ Output only JSON in the following format (no other text):
             )
             if output is None:
                 import sys
-                print(f"Summary generation failed: provider returned no output", file=sys.stderr)
+                print("Summary generation failed: provider returned no output", file=sys.stderr)
                 return None
             # Extract JSON block (may be in ```json ... ``` format)
             if "```json" in output:
