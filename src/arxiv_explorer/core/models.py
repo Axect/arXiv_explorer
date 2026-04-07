@@ -38,6 +38,14 @@ class Language(str, Enum):
     KO = "ko"
 
 
+@dataclass
+class CustomProviderConfig:
+    name: str
+    preset: str
+    command_template: str
+    default_model: str = ""
+
+
 class JobType(Enum):
     SUMMARIZE = "summarize"
     TRANSLATE = "translate"
