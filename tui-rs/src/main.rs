@@ -1439,18 +1439,18 @@ fn render_confirm_dialog(f: &mut Frame, app: &App) {
 
     f.render_widget(Clear, overlay);
 
-    let (title, body) = match &app.confirm_action {
+    let (title, body): (&str, String) = match &app.confirm_action {
         Some(ConfirmAction::RegenerateSummary) => (
             " Regenerate? ",
-            "Summary already exists.\nRegenerate? [y]es / [n]o",
+            "Summary already exists.\nRegenerate? [y]es / [n]o".into(),
         ),
         Some(ConfirmAction::RegenerateTranslation) => (
             " Regenerate? ",
-            "Translation already exists.\nRegenerate? [y]es / [n]o",
+            "Translation already exists.\nRegenerate? [y]es / [n]o".into(),
         ),
-        Some(ConfirmAction::RemoveCustomProvider(_)) => (
+        Some(ConfirmAction::RemoveCustomProvider(name)) => (
             " Remove Provider? ",
-            "Remove this custom provider?\n[y]es / [n]o",
+            format!("Remove custom provider '{name}'?\n[y]es / [n]o"),
         ),
         None => return,
     };
