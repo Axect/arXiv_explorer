@@ -60,10 +60,13 @@ class ReviewSectionType(str, Enum):
     FIGURES = "figures"
     TABLES = "tables"
     EXPERIMENTAL_RESULTS = "experimental_results"
+    REPRODUCIBILITY = "reproducibility"
     STRENGTHS_WEAKNESSES = "strengths_weaknesses"
+    IMPACT_SIGNIFICANCE = "impact_significance"
     RELATED_WORK = "related_work"
     GLOSSARY = "glossary"
     QUESTIONS = "questions"
+    READING_GUIDE = "reading_guide"
 
 
 @dataclass

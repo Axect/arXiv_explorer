@@ -40,8 +40,9 @@ class ArxivClient:
         import re
 
         # Already formatted: contains field prefix or boolean operator
-        if re.search(r'\b(all|ti|au|abs|cat|co|jr|rn|id):', query) or \
-           re.search(r'\b(AND|OR|ANDNOT)\b', query):
+        if re.search(r"\b(all|ti|au|abs|cat|co|jr|rn|id):", query) or re.search(
+            r"\b(AND|OR|ANDNOT)\b", query
+        ):
             return query
 
         words = query.split()

@@ -4,6 +4,7 @@ import typer
 from rich.console import Console
 
 from ..core.database import init_db
+from ..core.update_checker import UpdateStatus, check_for_updates, pull_updates
 
 app = typer.Typer(
     name="axp",
@@ -22,6 +23,58 @@ def version_callback(value: bool):
         raise typer.Exit()
 
 
+def _prompt_update(status: UpdateStatus) -> None:
+    """Display update info, warn about conflicts, and prompt user."""
+    console.print(
+        f"\n[bold yellow]Update available[/bold yellow]: "
+        f"{status.behind_count} new commit{'s' if status.behind_count != 1 else ''} "
+        f"on remote"
+    )
+
+    if status.ahead_count > 0:
+        console.print(
+            f"[dim](local is also {status.ahead_count} commit{'s' if status.ahead_count != 1 else ''} "
+            f"ahead of remote)[/dim]"
+        )
+
+    # Show changed files summary
+    if status.changed_files:
+        n = len(status.changed_files)
+        console.print(f"[dim]Changed files: {n}[/dim]")
+
+    # Warn about conflicts
+    if status.conflict_files:
+        console.print(
+            "\n[bold red]Warning:[/bold red] "
+            "The following locally modified files also changed on remote:"
+        )
+        for f in status.conflict_files:
+            console.print(f"  [red]- {f}[/red]")
+        console.print(
+            "[yellow]Pulling may cause merge conflicts. "
+            "Consider committing or stashing your local changes first.[/yellow]\n"
+        )
+
+    try:
+        answer = typer.prompt("Update now? [y/n]", default="n")
+    except (EOFError, KeyboardInterrupt):
+        console.print()
+        return
+
+    if answer.strip().lower() in ("y", "yes"):
+        console.print("[dim]Pulling updates...[/dim]")
+        success, message = pull_updates()
+        if success:
+            console.print(f"[green]Updated successfully.[/green] {message}")
+            console.print(
+                "[yellow]Note: if dependencies changed, run 'uv sync' to update them.[/yellow]\n"
+            )
+        else:
+            console.print(f"[red]Update failed:[/red] {message}\n")
+    else:
+        console.print("[dim]Skipped.[/dim]\n")
+
+
 @app.callback()
 def main(
     version: bool = typer.Option(
@@ -32,10 +85,22 @@ def main(
         is_eager=True,
         help="Show version",
     ),
+    no_update_check: bool = typer.Option(
+        False,
+        "--no-update-check",
+        hidden=True,
+        help="Skip update check",
+    ),
 ):
     """arXiv Explorer - Personalized paper recommendation system."""
     # Initialize DB
     init_db()
+
+    # Check for git updates (throttled, silent on failure)
+    if not no_update_check:
+        status = check_for_updates()
+        if status and status.has_update:
+            _prompt_update(status)
 
 
 # Import and register subcommands
