@@ -171,12 +171,14 @@ def get_provider(provider_name: str | AIProviderType) -> AIProvider:
         if ptype.value == name:
             if ptype == AIProviderType.CUSTOM:
                 from .settings_service import SettingsService
+
                 template = SettingsService().get("custom_command")
                 prov.configure(template)
             return prov
 
     # Try custom_providers table
     from .settings_service import SettingsService
+
     for cp in SettingsService().get_custom_providers():
         if cp.name == name:
             provider = CustomProvider()

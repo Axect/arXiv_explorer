@@ -64,6 +64,7 @@ Output only JSON in the following format (no other text):
             provider = get_provider(settings.get_provider())
             if not provider.is_available():
                 import sys
+
                 print("Summary generation failed: provider not available", file=sys.stderr)
                 return None
             output = provider.invoke(
@@ -73,6 +74,7 @@ Output only JSON in the following format (no other text):
             )
             if output is None:
                 import sys
+
                 print("Summary generation failed: provider returned no output", file=sys.stderr)
                 return None
             # Extract JSON block (may be in ```json ... ``` format)
@@ -87,6 +89,7 @@ Output only JSON in the following format (no other text):
                 data = json.loads(output)
             except json.JSONDecodeError as e:
                 import sys
+
                 print(f"Summary generation failed: JSON parse error: {e}", file=sys.stderr)
                 return None
 
@@ -106,6 +109,7 @@ Output only JSON in the following format (no other text):
 
         except Exception as e:
             import sys
+
             print(f"Summary generation failed: {e}", file=sys.stderr)
             return None
 

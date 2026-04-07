@@ -241,6 +241,7 @@ def show(
 
     if (summary or detailed) and paper_summary is None:
         import sys
+
         print("Failed to generate summary (check provider settings)", file=sys.stderr)
         raise typer.Exit(1)
 
@@ -259,6 +260,7 @@ def show(
 
     if translate and paper_translation is None:
         import sys
+
         print("Failed to generate translation (check provider settings)", file=sys.stderr)
         raise typer.Exit(1)
 

@@ -73,6 +73,7 @@ Respond in this exact JSON format:
             provider = get_provider(settings.get_provider())
             if not provider.is_available():
                 import sys
+
                 print("Translation failed: provider not available", file=sys.stderr)
                 return None
             output = provider.invoke(
@@ -82,6 +83,7 @@ Respond in this exact JSON format:
             )
             if output is None:
                 import sys
+
                 print("Translation failed: provider returned no output", file=sys.stderr)
                 return None
 
@@ -97,6 +99,7 @@ Respond in this exact JSON format:
                 data = json.loads(output)
             except json.JSONDecodeError as e:
                 import sys
+
                 print(f"Translation failed: JSON parse error: {e}", file=sys.stderr)
                 return None
 
@@ -114,6 +117,7 @@ Respond in this exact JSON format:
 
         except Exception as e:
             import sys
+
             print(f"Translation failed: {e}", file=sys.stderr)
             return None
 
