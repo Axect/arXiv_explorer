@@ -103,37 +103,37 @@ Launch with `uv run axp tui`. Built with Rust (Ratatui + Crossterm) for snappy n
 ### Paper Discovery
 
 ```
-axp daily [-d DAYS] [-l LIMIT] [-s]     Fetch recent papers (personalized)
-axp top   [-l LIMIT] [-s]               Top recommended papers
-axp search QUERY [-l LIMIT] [-a]        Search (add -a for arXiv API)
+uv run axp daily [-d DAYS] [-l LIMIT] [-s]     Fetch recent papers (personalized)
+uv run axp top   [-l LIMIT] [-s]               Top recommended papers
+uv run axp search QUERY [-l LIMIT] [-a]        Search (add -a for arXiv API)
 ```
 
 ### Paper Interaction
 
 ```
-axp show  [ARXIV_ID] [-s] [-d] [-t]     View paper details
-axp like  ARXIV_ID [-n NOTE]             Mark as interesting
-axp dislike ARXIV_ID                     Mark as not interesting
-axp translate ARXIV_ID                   Translate title and abstract
-axp review ARXIV_ID [-f] [-t]            Generate AI review
+uv run axp show  [ARXIV_ID] [-s] [-d] [-t]     View paper details
+uv run axp like  ARXIV_ID [-n NOTE]             Mark as interesting
+uv run axp dislike ARXIV_ID                     Mark as not interesting
+uv run axp translate ARXIV_ID                   Translate title and abstract
+uv run axp review ARXIV_ID [-f] [-t]            Generate AI review
 ```
 
 ### Organization
 
 ```
-axp prefs                                View/manage categories and keywords
-axp list                                 Manage reading lists
-axp note                                 Manage paper notes
-axp export                               Export to Markdown, JSON, or CSV
+uv run axp prefs                                View/manage categories and keywords
+uv run axp list                                 Manage reading lists
+uv run axp note                                 Manage paper notes
+uv run axp export                               Export to Markdown, JSON, or CSV
 ```
 
 ### Configuration
 
 ```
-axp config show                          View current AI settings
-axp config set-provider PROVIDER         Switch provider
-axp config set-language LANG             Change language (en, ko)
-axp config test                          Test provider connection
+uv run axp config show                          View current AI settings
+uv run axp config set-provider PROVIDER         Switch provider
+uv run axp config set-language LANG             Change language (en, ko)
+uv run axp config test                          Test provider connection
 ```
 
 ## AI Providers
@@ -150,9 +150,9 @@ AI features call external CLI tools via subprocess. No API keys are stored in th
 | **Custom** | user-defined | Template with `{prompt}` placeholder |
 
 ```bash
-axp config set-provider claude
-axp config set-model "claude-sonnet-4-5-20250929"
-axp config test
+uv run axp config set-provider claude
+uv run axp config set-model "claude-sonnet-4-5-20250929"
+uv run axp config test
 ```
 
 ## Architecture
@@ -193,7 +193,7 @@ Content similarity 60% + Category match 20% + Keyword match 15% + Recency bonus 
 ## Integration
 
 - **[arxivterminal](https://github.com/Axect/arxivterminal)**: Reads from its local paper database (read-only)
-- **[arxiv-doc-builder](https://github.com/Axect/arxiv-doc-builder)**: Converts papers to Markdown via `axp export markdown`
+- **[arxiv-doc-builder](https://github.com/Axect/arxiv-doc-builder)**: Converts papers to Markdown via `uv run axp export markdown`
 
 ## Data Storage
 
