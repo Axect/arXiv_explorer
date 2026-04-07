@@ -22,6 +22,7 @@ EXPECTED_TABLES = {
     "preferred_authors",
     "daily_fetch_cache",
     "custom_providers",
+    "skill_review_meta",
 }
 
 
