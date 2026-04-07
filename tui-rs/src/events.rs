@@ -79,6 +79,7 @@ pub fn handle_key(app: &mut App, key: KeyCode) -> bool {
             app.prefs.weights = app.db.get_weights().unwrap_or([60, 20, 15, 5]);
             app.prefs.provider = app.db.get_setting("ai_provider", "gemini").unwrap_or_else(|_| "gemini".to_string());
             app.prefs.language = app.db.get_setting("language", "en").unwrap_or_else(|_| "en".to_string());
+            app.prefs.custom_providers = app.db.get_custom_providers().unwrap_or_default();
         }
         // Delegate to per-tab handler
         _ => match app.active_tab {
@@ -134,6 +135,7 @@ pub fn handle_confirm_key(app: &mut App, key: KeyCode) {
             match action {
                 ConfirmAction::RegenerateSummary => trigger_summarize(app),
                 ConfirmAction::RegenerateTranslation => trigger_translate(app),
+                ConfirmAction::RemoveCustomProvider(_) => {}
             }
         }
         _ => {
@@ -292,6 +294,9 @@ pub fn handle_overlay_key(app: &mut App, key: KeyCode) {
                 }
             }
         }
+        crate::app::OverlayMode::PresetPicker { .. }
+        | crate::app::OverlayMode::ProviderNameInput { .. }
+        | crate::app::OverlayMode::CommandTemplateInput { .. } => {}
     }
 }
 
@@ -1215,6 +1220,7 @@ pub fn handle_prefs_key(app: &mut App, key: KeyCode) {
                 .db
                 .get_setting("language", "en")
                 .unwrap_or_else(|_| "en".to_string());
+            app.prefs.custom_providers = app.db.get_custom_providers().unwrap_or_default();
         }
         _ => {}
     }

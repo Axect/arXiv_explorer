@@ -191,6 +191,8 @@ pub struct PrefsState {
     pub weights: [i64; 4],
     pub provider: String,
     pub language: String,
+    pub custom_providers: Vec<crate::db::models::CustomProviderEntry>,
+    pub custom_provider_selected: usize,
     pub selected: usize,           // cursor in weights section
     pub focus_section: usize,      // 0=cats, 1=keywords, 2=authors, 3=weights, 4=config
     pub section_selected: [usize; 5], // cursor per section (section 4: 0=provider, 1=language)
@@ -205,6 +207,8 @@ impl Default for PrefsState {
             weights: [60, 20, 15, 5],
             provider: "gemini".to_string(),
             language: "en".to_string(),
+            custom_providers: vec![],
+            custom_provider_selected: 0,
             selected: 0,
             focus_section: 0,
             section_selected: [0; 5],
@@ -220,6 +224,7 @@ impl Default for PrefsState {
 pub enum ConfirmAction {
     RegenerateSummary,
     RegenerateTranslation,
+    RemoveCustomProvider(String),
 }
 
 // =============================================================================
@@ -249,6 +254,18 @@ pub enum OverlayMode {
         weight: i64, // 1-5, default 3
     },
     AuthorInput {
+        text: String,
+    },
+    PresetPicker {
+        selected: usize,
+    },
+    ProviderNameInput {
+        preset: String,
+        text: String,
+    },
+    CommandTemplateInput {
+        preset: String,
+        name: String,
         text: String,
     },
 }
@@ -353,6 +370,8 @@ impl App {
                 weights,
                 provider,
                 language,
+                custom_providers: vec![],
+                custom_provider_selected: 0,
                 selected: 0,
                 focus_section: 0,
                 section_selected: [0; 5],

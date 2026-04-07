@@ -152,6 +152,9 @@ fn render(f: &mut Frame, app: &mut App) {
             app::OverlayMode::CategoryPicker { .. } => render_category_picker(f, app),
             app::OverlayMode::KeywordInput { .. } => render_keyword_input(f, app),
             app::OverlayMode::AuthorInput { .. } => render_author_input(f, app),
+            app::OverlayMode::PresetPicker { .. }
+            | app::OverlayMode::ProviderNameInput { .. }
+            | app::OverlayMode::CommandTemplateInput { .. } => {}
         }
     }
 
@@ -1425,6 +1428,10 @@ fn render_confirm_dialog(f: &mut Frame, app: &App) {
         Some(ConfirmAction::RegenerateTranslation) => (
             " Regenerate? ",
             "Translation already exists.\nRegenerate? [y]es / [n]o",
+        ),
+        Some(ConfirmAction::RemoveCustomProvider(_)) => (
+            " Remove Provider? ",
+            "Remove this custom provider?\n[y]es / [n]o",
         ),
         None => return,
     };
