@@ -730,16 +730,22 @@ IMPORTANT: Respond ONLY with a JSON object (no markdown fences, no other text).
                 "SELECT * FROM paper_review_sections WHERE arxiv_id = ?",
                 (arxiv_id,),
             ).fetchall()
-        return {
-            ReviewSectionType(row["section_type"]): ReviewSection(
+        result: dict[ReviewSectionType, ReviewSection] = {}
+        for row in rows:
+            # Skip rows from a previous review schema (legacy section_type values
+            # that are no longer part of the journal-club pipeline).
+            try:
+                section_type = ReviewSectionType(row["section_type"])
+            except ValueError:
+                continue
+            result[section_type] = ReviewSection(
                 id=row["id"],
                 arxiv_id=row["arxiv_id"],
-                section_type=ReviewSectionType(row["section_type"]),
+                section_type=section_type,
                 content_json=row["content_json"],
                 generated_at=datetime.fromisoformat(row["generated_at"]),
             )
-            for row in rows
-        }
+        return result
 
     def _save_section(
         self,

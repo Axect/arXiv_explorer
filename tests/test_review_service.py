@@ -134,6 +134,28 @@ class TestReviewCaching:
         assert ReviewSectionType.HOOK in all_cached
         assert ReviewSectionType.PROBLEM in all_cached
 
+    def test_get_all_cached_skips_legacy_section_types(self, tmp_config: Config, review_service):
+        # Rows written by the previous (non-journal-club) review schema use
+        # section_type values that are no longer valid. They must be skipped
+        # rather than crashing with ValueError.
+        from arxiv_explorer.core.database import get_connection
+
+        with get_connection() as conn:
+            conn.execute(
+                """INSERT INTO paper_review_sections
+                   (arxiv_id, section_type, content_json, source_type)
+                   VALUES (?, ?, ?, ?)""",
+                ("2401.00001", "methodology", json.dumps({"legacy": True}), "full_text"),
+            )
+            conn.commit()
+        review_service._save_section(
+            "2401.00001", ReviewSectionType.HOOK, {"one_liner": "test"}, "abstract"
+        )
+
+        all_cached = review_service._get_all_cached_sections("2401.00001")
+        assert ReviewSectionType.HOOK in all_cached
+        assert len(all_cached) == 1
+
     def test_cache_replaces_on_update(self, tmp_config: Config, review_service):
         review_service._save_section(
             "2401.00001", ReviewSectionType.HOOK, {"one_liner": "old"}, "abstract"
