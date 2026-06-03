@@ -38,6 +38,7 @@ dependencies = [
     "feedparser>=6.0.0",
     "httpx>=0.25.0",
     "numpy>=1.24.0",
+    "openai-codex>=0.1.0b2",
 ]
 
 [project.scripts]
@@ -56,6 +57,13 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/arxiv_explorer"]
+
+[tool.uv]
+# openai-codex (beta) hard-pins openai-codex-cli-bin==0.132.0, whose only Linux
+# x86_64 wheel is musllinux. On glibc (manylinux) hosts uv refuses it. 0.136.0
+# ships a manylinux_2_17_x86_64 build, so override the pin to the glibc-native
+# runtime. The SDK talks to it over the stable v2 app-server JSON-RPC protocol.
+override-dependencies = ["openai-codex-cli-bin==0.136.0"]
 
 [dependency-groups]
 dev = [

@@ -151,14 +151,14 @@ def test():
     provider_type = settings.get_provider()
     provider = get_provider(provider_type)
 
-    if provider_type == AIProviderType.CUSTOM and not provider.cli_command:
+    if provider_type == AIProviderType.CUSTOM.value and not provider.cli_command:
         print_error("No custom command configured. Use 'axp config set-custom' first")
         raise typer.Exit(1)
 
-    console.print(f"Testing [cyan]{provider_type.value}[/cyan] ({provider.cli_command})...")
+    console.print(f"Testing [cyan]{provider_type}[/cyan] ({provider.cli_command})...")
 
     if not provider.is_available():
-        print_error(f"'{provider.cli_command}' not found on PATH")
+        print_error(f"Provider '{provider_type}' is not available")
         raise typer.Exit(1)
 
     output = provider.invoke(

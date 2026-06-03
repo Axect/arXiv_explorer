@@ -78,19 +78,57 @@ class ClaudeProvider(AIProvider):
 
 
 class CodexProvider(AIProvider):
-    """OpenAI provider via Codex CLI."""
+    """OpenAI provider via the openai-codex Python SDK.
+
+    Drives the local Codex app-server through the SDK, reusing the user's
+    existing Codex/ChatGPT auth (``~/.codex``), so it needs neither an
+    ``OPENAI_API_KEY`` nor a ``codex`` binary on PATH. The SDK bundles its
+    own pinned runtime.
+    """
 
     provider_type = AIProviderType.OPENAI
-    cli_command = "codex"
+    cli_command = "codex"  # informational only; not used for dispatch
     default_model = ""
 
     def build_command(self, prompt: str, model: str = "") -> list[str]:
-        cmd = [self.cli_command]
+        # Unused: this provider talks to Codex over the SDK, not a subprocess.
+        return []
+
+    def is_available(self) -> bool:
+        """Available when the SDK is importable (auth is checked at invoke)."""
+        try:
+            import openai_codex  # noqa: F401
+        except ImportError:
+            return False
+        return True
+
+    def invoke(self, prompt: str, model: str = "", timeout: int = 120) -> str | None:
+        """Run a single Codex turn and return its final text response.
+
+        Runs read-only in a temp working directory so the coding agent
+        cannot touch the project. ``timeout`` is accepted for interface
+        parity but the SDK manages its own app-server lifecycle.
+        """
+        import tempfile
+
+        try:
+            from openai_codex import Codex, Sandbox
+        except ImportError:
+            return None
+
         effective_model = model or self.default_model
+        run_kwargs: dict = {"sandbox": Sandbox.read_only, "cwd": tempfile.gettempdir()}
         if effective_model:
-            cmd += ["--model", effective_model]
-        cmd += ["--prompt", prompt]
-        return cmd
+            run_kwargs["model"] = effective_model
+
+        try:
+            with Codex() as codex:
+                thread = codex.thread_start()
+                result = thread.run(prompt, **run_kwargs)
+                text = (getattr(result, "final_response", "") or "").strip()
+                return text or None
+        except Exception:
+            return None
 
 
 class OllamaProvider(AIProvider):
