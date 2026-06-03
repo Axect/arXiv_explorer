@@ -43,10 +43,10 @@ def review(
         False, "--force", "-f", help="Regenerate all sections (ignore cache)"
     ),
     translate: bool = typer.Option(
-        False, "--translate", "-t", help="Translate review to configured language"
+        False, "--translate", "-t", help="(Deprecated) Translation now follows the configured language by default"
     ),
     language: Optional[str] = typer.Option(
-        None, "--language", "-L", help="Target language code (e.g., 'ko')"
+        None, "--language", "-L", help="Override target language for this run (e.g. 'ko', 'en')"
     ),
     no_full_text: bool = typer.Option(
         False, "--no-full-text", help="Skip full text extraction, use abstract only"
@@ -72,7 +72,7 @@ def review(
     Examples:
         axp review 2401.00001
         axp review 2401.00001 -o review.md
-        axp review 2401.00001 --force --translate
+        axp review 2401.00001 --force --language en
         axp review 2401.00001 --status
     """
     review_service = PaperReviewService()
@@ -206,18 +206,18 @@ def review(
     elif output is None and not no_images and settings.get_review_images_enabled():
         print_info("Tip: use --output to a file to also generate embedded figures.")
 
-    # Resolve language
-    target_lang = Language.EN
-    if translate or language:
-        if language:
-            try:
-                target_lang = Language(language)
-            except ValueError:
-                supported = ", ".join(lang.value for lang in Language)
-                print_error(f"Unknown language: {language}. Supported: {supported}")
-                raise typer.Exit(1) from None
-        else:
-            target_lang = settings.get_language()
+    # Resolve language. The configured default language is honored automatically
+    # (so a user whose default is 'ko' gets Korean reviews without extra flags).
+    # --language overrides it for a single run; pass --language en to force English.
+    if language:
+        try:
+            target_lang = Language(language)
+        except ValueError:
+            supported = ", ".join(lang.value for lang in Language)
+            print_error(f"Unknown language: {language}. Supported: {supported}")
+            raise typer.Exit(1) from None
+    else:
+        target_lang = settings.get_language()
 
     # Render markdown
     markdown = review_service.render_markdown(paper_review, language=target_lang)

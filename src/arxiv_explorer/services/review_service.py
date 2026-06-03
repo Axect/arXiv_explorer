@@ -49,6 +49,13 @@ class PaperReviewService:
         "be honest about limitations without an adversarial tone. "
         "Your analysis must be evidence-grounded: cite specific sections, equations, or figures "
         "from the paper to support every claim. Avoid vague assertions -- be precise.\n\n"
+        "MATH FORMATTING: Write every mathematical expression, variable, symbol, unit with a "
+        "power/subscript, or numeric range as LaTeX. Use inline math $...$ for in-sentence "
+        "notation and display math $$...$$ for standalone equations. For example write "
+        r"$10^{17}$--$10^{23}\,\mathrm{g}$, $M_\odot$, $\rho \propto r^{-2}$ -- never plain-text "
+        "forms like 10^17-10^23 g or M_sun. This applies to all string fields in your JSON "
+        "(including inside lists), but NOT to any figure panel descriptions (those stay plain "
+        "English, no formulas).\n\n"
     )
 
     def generate_review(
