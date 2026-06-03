@@ -705,9 +705,29 @@ IMPORTANT: Respond ONLY with a JSON object (no markdown fences, no other text).
             output = output.split("```")[1].split("```")[0]
 
         output = output.strip()
+        return self._parse_json_lenient(output)
 
+    @staticmethod
+    def _parse_json_lenient(text: str) -> dict | None:
+        """Parse JSON, tolerating LaTeX backslashes in string values.
+
+        The math-formatting instruction makes the model emit LaTeX such as
+        ``\\mathcal{G}``, ``\\to``, or ``\\odot`` inside JSON string values, but
+        ``\\m`` / ``\\o`` are not valid JSON escapes, so a strict ``json.loads``
+        rejects the whole object. On failure, escape every backslash that does
+        not start a valid JSON escape (``\\" \\\\ \\/ \\uXXXX``) and retry.
+        """
         try:
-            return json.loads(output)
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+        repaired = re.sub(
+            r"\\(.)",
+            lambda m: m.group(0) if m.group(1) in '"\\/u' else "\\\\" + m.group(1),
+            text,
+        )
+        try:
+            return json.loads(repaired)
         except json.JSONDecodeError:
             return None
 

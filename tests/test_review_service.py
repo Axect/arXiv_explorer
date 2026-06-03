@@ -815,6 +815,31 @@ class TestGenerateReviewMocked:
         assert len(review.sections) > 0
 
 
+# ── JSON parsing (regression: LaTeX backslashes must not break sections) ─
+
+
+class TestLenientJsonParsing:
+    """AI responses carry LaTeX (\\mathcal, \\to, ...) that is not valid JSON escape."""
+
+    def test_plain_json_unchanged(self, review_service):
+        data = review_service._parse_json_lenient('{"a": "hello", "b": 3}')
+        assert data == {"a": "hello", "b": 3}
+
+    def test_latex_backslashes_are_repaired(self, review_service):
+        raw = '{"q": "operator $\\mathcal{G}:\\mathcal{A}\\to\\mathcal{U}$ and $M_\\odot$"}'
+        data = review_service._parse_json_lenient(raw)
+        assert data is not None
+        # LaTeX content is preserved verbatim after repair.
+        assert data["q"] == "operator $\\mathcal{G}:\\mathcal{A}\\to\\mathcal{U}$ and $M_\\odot$"
+
+    def test_valid_escapes_survive(self, review_service):
+        data = review_service._parse_json_lenient('{"path": "a\\/b", "quote": "he said \\"hi\\""}')
+        assert data == {"path": "a/b", "quote": 'he said "hi"'}
+
+    def test_unrecoverable_returns_none(self, review_service):
+        assert review_service._parse_json_lenient("not json at all {") is None
+
+
 # ── Translation structure (regression: headings must not glue to body) ─
 
 
