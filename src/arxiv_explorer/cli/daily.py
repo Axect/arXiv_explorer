@@ -44,7 +44,15 @@ def daily(
         raise typer.Exit(1)
 
     if json_output:
-        author_papers, scored_papers = service.get_daily_papers(days=days, limit=limit)
+        import sys
+
+        try:
+            author_papers, scored_papers = service.get_daily_papers(days=days, limit=limit)
+        except Exception as e:
+            # Emit a clean one-line error so callers (e.g. the TUI) get a
+            # usable message instead of a full traceback dump.
+            print(f"{type(e).__name__}: {e}", file=sys.stderr)
+            raise typer.Exit(1) from e
 
         def paper_to_dict(rec):
             p = rec.paper

@@ -17,7 +17,15 @@ def search(
 
     service = PaperService()
 
-    papers = service.search_papers(query, limit=limit, from_arxiv=arxiv)
+    try:
+        papers = service.search_papers(query, limit=limit, from_arxiv=arxiv)
+    except Exception as e:
+        if json_output:
+            import sys
+
+            print(f"{type(e).__name__}: {e}", file=sys.stderr)
+            raise typer.Exit(1) from e
+        raise
 
     if json_output:
 

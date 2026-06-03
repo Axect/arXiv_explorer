@@ -14,6 +14,10 @@ from ..core.models import Paper
 
 ARXIV_API_URL = "https://export.arxiv.org/api/query"
 RATE_LIMIT_SECONDS = 3
+MAX_RETRIES = 4
+MAX_BACKOFF_SECONDS = 30
+# arXiv throttles with 429 and serves 503 when overloaded; both are retryable.
+RETRYABLE_STATUS = {429, 503}
 
 
 class ArxivClient:
@@ -28,6 +32,45 @@ class ArxivClient:
         if elapsed < RATE_LIMIT_SECONDS:
             time.sleep(RATE_LIMIT_SECONDS - elapsed)
         self._last_request_time = time.time()
+
+    def _get_with_retry(self, params: dict) -> httpx.Response:
+        """GET the arXiv API with rate limiting and retry/backoff.
+
+        arXiv frequently answers with 429 (rate limited), 503 (overloaded),
+        or simply times out. Retry those cases with exponential backoff,
+        honoring the Retry-After header when arXiv provides one. The last
+        attempt re-raises so callers still see a real error if arXiv stays
+        unavailable.
+        """
+        backoff: float = RATE_LIMIT_SECONDS
+        last_error: Exception | None = None
+
+        for attempt in range(MAX_RETRIES):
+            self._rate_limit()
+            try:
+                with httpx.Client(trust_env=False) as client:
+                    response = client.get(ARXIV_API_URL, params=params, timeout=60)
+            except httpx.TransportError as exc:
+                last_error = exc
+            else:
+                if response.status_code not in RETRYABLE_STATUS:
+                    response.raise_for_status()
+                    return response
+                last_error = httpx.HTTPStatusError(
+                    f"arXiv returned {response.status_code} (rate limited or overloaded)",
+                    request=response.request,
+                    response=response,
+                )
+                retry_after = response.headers.get("retry-after")
+                if retry_after and retry_after.isdigit():
+                    backoff = float(retry_after)
+
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(min(backoff, MAX_BACKOFF_SECONDS))
+                backoff *= 2
+
+        assert last_error is not None
+        raise last_error
 
     @staticmethod
     def _build_query(query: str) -> str:
@@ -58,8 +101,6 @@ class ArxivClient:
         sort_order: str = "descending",
     ) -> list[Paper]:
         """Search papers by keyword (write-through cache)."""
-        self._rate_limit()
-
         params = {
             "search_query": self._build_query(query),
             "max_results": max_results,
@@ -67,10 +108,7 @@ class ArxivClient:
             "sortOrder": sort_order,
         }
 
-        with httpx.Client(trust_env=False) as client:
-            response = client.get(ARXIV_API_URL, params=params, timeout=60)
-            response.raise_for_status()
-
+        response = self._get_with_retry(params)
         papers = self._parse_response(response.text)
         self._save_cache_batch(papers)
         return papers
@@ -119,14 +157,9 @@ class ArxivClient:
         if cached:
             return cached
 
-        self._rate_limit()
-
         params = {"id_list": arxiv_id}
 
-        with httpx.Client(trust_env=False) as client:
-            response = client.get(ARXIV_API_URL, params=params, timeout=60)
-            response.raise_for_status()
-
+        response = self._get_with_retry(params)
         papers = self._parse_response(response.text)
         if papers:
             self._save_cache_batch(papers)
