@@ -13,6 +13,8 @@ DEFAULTS: dict[str, str] = {
     "weight_category": "20",
     "weight_keyword": "15",
     "weight_recency": "5",
+    "review_images_enabled": "true",
+    "review_image_theme": "friendly",
 }
 
 WEIGHT_KEYS = ["content", "category", "keyword", "recency"]
@@ -91,6 +93,14 @@ class SettingsService:
             return Language(self.get("language"))
         except ValueError:
             return Language.EN
+
+    def get_review_images_enabled(self) -> bool:
+        """Whether to generate figures during reviews (when codex is available)."""
+        return self.get("review_images_enabled").strip().lower() in ("1", "true", "yes", "on")
+
+    def get_review_image_theme(self) -> str:
+        """The figure style theme name (e.g. 'friendly')."""
+        return self.get("review_image_theme") or "friendly"
 
     def get_weights(self) -> dict[str, int]:
         """Get current recommendation weights."""

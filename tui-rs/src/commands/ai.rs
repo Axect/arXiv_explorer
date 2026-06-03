@@ -71,11 +71,12 @@ pub fn run_translate(tx: mpsc::UnboundedSender<AppEvent>, job_id: String, arxiv_
 
 pub fn run_review(tx: mpsc::UnboundedSender<AppEvent>, job_id: String, arxiv_id: String) {
     tokio::spawn(async move {
-        // Save review to ./reviews/<id>_review.md (relative to cwd)
-        let reviews_dir = std::path::PathBuf::from("reviews");
-        let _ = tokio::fs::create_dir_all(&reviews_dir).await;
+        // Save to ./reviews/<id>/review.md so generated figures (figures/*.png)
+        // live alongside the markdown (relative to cwd).
         let normalized = arxiv_id.replace("/", "_");
-        let out_path = reviews_dir.join(format!("{normalized}_review.md"));
+        let paper_dir = std::path::PathBuf::from("reviews").join(&normalized);
+        let _ = tokio::fs::create_dir_all(&paper_dir).await;
+        let out_path = paper_dir.join("review.md");
 
         let output = Command::new("uv")
             .args([

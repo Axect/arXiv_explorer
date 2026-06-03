@@ -14,28 +14,23 @@ from rich.progress import (
 )
 
 from ..core.models import Language, ReviewSectionType
+from ..services import figure_service
 from ..services.paper_service import PaperService
 from ..services.review_service import PaperReviewService
 from ..services.settings_service import SettingsService
 from ..utils.display import console, print_error, print_info, print_success
 
-# Human-readable names for review sections
+# Human-readable names for the journal-club review sections
 _SECTION_NAMES: dict[ReviewSectionType, str] = {
-    ReviewSectionType.EXECUTIVE_SUMMARY: "Executive Summary",
-    ReviewSectionType.KEY_CONTRIBUTIONS: "Key Contributions",
-    ReviewSectionType.SECTION_SUMMARIES: "Section Summaries",
-    ReviewSectionType.METHODOLOGY: "Methodology Analysis",
-    ReviewSectionType.MATH_FORMULATIONS: "Math Formulations",
-    ReviewSectionType.FIGURES: "Figure Analysis",
-    ReviewSectionType.TABLES: "Table Analysis",
-    ReviewSectionType.EXPERIMENTAL_RESULTS: "Experimental Results",
-    ReviewSectionType.REPRODUCIBILITY: "Reproducibility Assessment",
-    ReviewSectionType.STRENGTHS_WEAKNESSES: "Strengths & Weaknesses",
-    ReviewSectionType.IMPACT_SIGNIFICANCE: "Impact & Significance",
-    ReviewSectionType.RELATED_WORK: "Related Work",
-    ReviewSectionType.GLOSSARY: "Glossary",
-    ReviewSectionType.QUESTIONS: "Questions for Authors",
-    ReviewSectionType.READING_GUIDE: "Reading Guide",
+    ReviewSectionType.HOOK: "TL;DR",
+    ReviewSectionType.PROBLEM: "The Problem",
+    ReviewSectionType.KEY_IDEA: "Key Idea",
+    ReviewSectionType.METHOD: "How It Works",
+    ReviewSectionType.RESULTS: "Key Results",
+    ReviewSectionType.SIGNIFICANCE: "Why It Matters",
+    ReviewSectionType.APPRAISAL: "Strengths & Limitations",
+    ReviewSectionType.DISCUSSION: "Discussion Questions",
+    ReviewSectionType.TAKEAWAYS: "Takeaways",
 }
 
 
@@ -55,6 +50,12 @@ def review(
     ),
     no_full_text: bool = typer.Option(
         False, "--no-full-text", help="Skip full text extraction, use abstract only"
+    ),
+    no_images: bool = typer.Option(
+        False, "--no-images", help="Skip figure generation (codex imagegen)"
+    ),
+    theme: Optional[str] = typer.Option(
+        None, "--theme", help="Figure style theme (default: configured setting)"
     ),
     status: bool = typer.Option(
         False, "--status", "-s", help="Show cached review status without generating"
@@ -166,6 +167,45 @@ def review(
     if paper_review.source_type == "abstract":
         print_info("Note: Full text was not available. Review is based on abstract only.")
 
+    settings = SettingsService()
+
+    # Generate figures (codex imagegen) when saving to a file. Figures live in
+    # <output_dir>/figures/ and are embedded with relative paths.
+    if output is not None and not no_images and settings.get_review_images_enabled():
+        if figure_service.codex_imagegen_available():
+            briefs: list[tuple[str, dict]] = []
+            method = paper_review.sections.get(ReviewSectionType.METHOD, {})
+            if method.get("figure_brief"):
+                briefs.append(("method", method["figure_brief"]))
+            results = paper_review.sections.get(ReviewSectionType.RESULTS, {})
+            if results.get("figure_brief"):
+                briefs.append(("results", results["figure_brief"]))
+            if briefs:
+                theme_name = theme or settings.get_review_image_theme()
+                fig_dir = output.parent / "figures"
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    TimeElapsedColumn(),
+                    console=console,
+                ) as progress:
+                    progress.add_task(
+                        f"Generating {len(briefs)} figure(s) with codex (~1-2 min each)...",
+                        total=None,
+                    )
+                    generated = figure_service.generate_figures(
+                        briefs, fig_dir, theme=theme_name, force=force
+                    )
+                for name, path in generated.items():
+                    paper_review.figure_paths[name] = f"figures/{path.name}"
+                if generated:
+                    print_success(f"Generated {len(generated)} figure(s) in {fig_dir}")
+                missing = [n for n, _ in briefs if n not in generated]
+                if missing:
+                    print_info(f"Figure(s) not produced: {', '.join(missing)} (rendered text-only)")
+    elif output is None and not no_images and settings.get_review_images_enabled():
+        print_info("Tip: use --output to a file to also generate embedded figures.")
+
     # Resolve language
     target_lang = Language.EN
     if translate or language:
@@ -177,7 +217,7 @@ def review(
                 print_error(f"Unknown language: {language}. Supported: {supported}")
                 raise typer.Exit(1) from None
         else:
-            target_lang = SettingsService().get_language()
+            target_lang = settings.get_language()
 
     # Render markdown
     markdown = review_service.render_markdown(paper_review, language=target_lang)

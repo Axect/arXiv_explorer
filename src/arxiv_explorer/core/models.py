@@ -60,21 +60,17 @@ class JobStatus(Enum):
 
 
 class ReviewSectionType(str, Enum):
-    EXECUTIVE_SUMMARY = "executive_summary"
-    KEY_CONTRIBUTIONS = "key_contributions"
-    SECTION_SUMMARIES = "section_summaries"
-    METHODOLOGY = "methodology"
-    MATH_FORMULATIONS = "math_formulations"
-    FIGURES = "figures"
-    TABLES = "tables"
-    EXPERIMENTAL_RESULTS = "experimental_results"
-    REPRODUCIBILITY = "reproducibility"
-    STRENGTHS_WEAKNESSES = "strengths_weaknesses"
-    IMPACT_SIGNIFICANCE = "impact_significance"
-    RELATED_WORK = "related_work"
-    GLOSSARY = "glossary"
-    QUESTIONS = "questions"
-    READING_GUIDE = "reading_guide"
+    """Journal-club presentation sections (in presentation order)."""
+
+    HOOK = "hook"  # one-line summary + why it's worth reading
+    PROBLEM = "problem"  # problem & motivation
+    KEY_IDEA = "key_idea"  # core idea + intuition
+    METHOD = "method"  # how it works (figure 1 anchor)
+    RESULTS = "results"  # key results (figure 2 anchor)
+    SIGNIFICANCE = "significance"  # why it matters
+    APPRAISAL = "appraisal"  # honest strengths + limitations + open questions
+    DISCUSSION = "discussion"  # discussion questions for the club
+    TAKEAWAYS = "takeaways"  # bullets + one-sentence wrap
 
 
 @dataclass
@@ -218,6 +214,9 @@ class PaperReview:
     sections: dict[ReviewSectionType, dict] = field(default_factory=dict)
     pdf_url: Optional[str] = None
     source_type: str = "abstract"
+    # Maps figure name ("method"/"results") to a markdown-relative path
+    # (e.g. "figures/method.png") when a figure was generated.
+    figure_paths: dict[str, str] = field(default_factory=dict)
     generated_at: datetime = field(default_factory=datetime.now)
 
     @property
