@@ -777,49 +777,128 @@ IMPORTANT: Respond ONLY with a JSON object (no markdown fences, no other text).
 
     # ── Translation ───────────────────────────────────────────────────
 
+    _HEADING_RE = re.compile(r"(?m)^(#{1,6}) (.*)$")
+    _PLACEHOLDER = "@@JCRH{}@@"
+
     def _translate_markdown(self, markdown: str, target_language: Language) -> str | None:
-        """Translate final markdown, chunking by ## headers if needed."""
+        """Translate final markdown into ``target_language``.
+
+        Headings are masked with placeholders before translation and re-inserted
+        afterwards with forced surrounding blank lines, so the translator can
+        never merge a heading into the following body text (which would turn a
+        whole paragraph into one giant heading). The body is translated in
+        paragraph-aligned chunks and rejoined with explicit blank lines, so lost
+        whitespace at chunk boundaries cannot glue paragraphs together either.
+        """
         lang_name = _LANG_NAMES.get(target_language, target_language.value)
-        max_chunk = 6000
 
-        if len(markdown) <= max_chunk:
-            return self._translate_chunk(markdown, lang_name)
+        # 1. Mask heading lines, recording their level and original text.
+        levels: list[str] = []
+        texts: list[str] = []
 
-        # Split by ## headers to maintain structure
-        chunks = re.split(r"(^## .+$)", markdown, flags=re.MULTILINE)
-        translated_parts: list[str] = []
-        current_chunk = ""
+        def _mask(match: re.Match) -> str:
+            idx = len(texts)
+            levels.append(match.group(1))
+            texts.append(match.group(2).strip())
+            return self._PLACEHOLDER.format(idx)
 
-        for chunk in chunks:
-            if len(current_chunk) + len(chunk) > max_chunk and current_chunk:
-                result = self._translate_chunk(current_chunk, lang_name)
-                translated_parts.append(result or current_chunk)
-                current_chunk = chunk
+        masked = self._HEADING_RE.sub(_mask, markdown)
+
+        # 2. Translate the body (no headings inside it now).
+        translated = self._translate_body(masked, lang_name)
+        if translated is None:
+            return None
+
+        # 3. Translate the heading texts and restore them on their own lines,
+        #    forcing blank lines around each placeholder even if the translator
+        #    glued surrounding text to it.
+        translated_headings = self._translate_headings(texts, lang_name)
+        for idx, (level, heading) in enumerate(zip(levels, translated_headings, strict=True)):
+            placeholder = re.escape(self._PLACEHOLDER.format(idx))
+            replacement = f"\n\n{level} {heading}\n\n"
+            translated = re.sub(
+                r"[ \t]*" + placeholder + r"[ \t]*",
+                lambda _m, r=replacement: r,
+                translated,
+                count=1,
+            )
+
+        # Collapse the runs of blank lines the forced newlines may have created.
+        return re.sub(r"\n{3,}", "\n\n", translated).strip() + "\n"
+
+    def _translate_body(self, text: str, lang_name: str, max_chunk: int = 6000) -> str | None:
+        """Translate masked body text in paragraph-aligned chunks."""
+        if len(text) <= max_chunk:
+            return self._translate_chunk(text, lang_name)
+
+        paragraphs = text.split("\n\n")
+        chunks: list[str] = []
+        current = ""
+        for para in paragraphs:
+            addition = para if not current else "\n\n" + para
+            if current and len(current) + len(addition) > max_chunk:
+                chunks.append(current)
+                current = para
             else:
-                current_chunk += chunk
+                current += addition
+        if current:
+            chunks.append(current)
 
-        if current_chunk:
-            result = self._translate_chunk(current_chunk, lang_name)
-            translated_parts.append(result or current_chunk)
+        translated_parts: list[str] = []
+        for chunk in chunks:
+            result = self._translate_chunk(chunk, lang_name)
+            translated_parts.append((result or chunk).strip("\n"))
+        # Rejoin with explicit blank lines so dropped boundary whitespace cannot
+        # glue paragraphs from adjacent chunks.
+        return "\n\n".join(translated_parts)
 
-        return "".join(translated_parts)
+    def _translate_headings(self, texts: list[str], lang_name: str) -> list[str]:
+        """Translate heading texts, batched into one call with a per-line fallback."""
+        if not texts:
+            return []
+
+        numbered = "\n".join(f"{i + 1}. {t}" for i, t in enumerate(texts))
+        prompt = f"""Translate each numbered section heading below into {lang_name}.
+
+RULES:
+- Keep technical terms, model/dataset names, proper nouns, acronyms, and math in English.
+- Return EXACTLY {len(texts)} lines, same numbering and order, one heading per line.
+- Output only the translated headings, nothing else.
+
+{numbered}"""
+        output = self._invoke_text(prompt)
+        if output:
+            lines = [
+                re.sub(r"^\s*\d+[.)]\s*", "", ln).strip()
+                for ln in output.strip().splitlines()
+                if ln.strip()
+            ]
+            if len(lines) == len(texts):
+                return lines
+
+        # Fallback: translate each heading individually.
+        return [self._translate_chunk(t, lang_name) or t for t in texts]
 
     def _translate_chunk(self, text: str, lang_name: str) -> str | None:
-        """Translate a single chunk of markdown."""
-        prompt = f"""Translate the following Markdown document into {lang_name}.
+        """Translate a single chunk of markdown body text."""
+        prompt = f"""Translate the following Markdown into {lang_name}.
 
 IMPORTANT RULES:
-- Preserve ALL Markdown formatting (headers, bold, italic, tables, links, code blocks)
-- Keep ALL technical terms, model names, dataset names, proper nouns, and acronyms in English
-- Keep mathematical notation ($...$, $$...$$) as-is
-- Keep URLs and arXiv IDs as-is
-- The translation should read naturally in {lang_name}
+- Preserve ALL Markdown formatting (bold, italic, tables, links, lists, code blocks).
+- Keep placeholder tokens like @@JCRH0@@ EXACTLY as they are, on their own line.
+- Keep ALL technical terms, model names, dataset names, proper nouns, and acronyms in English.
+- Keep mathematical notation ($...$, $$...$$) as-is.
+- Keep URLs and arXiv IDs as-is.
+- The translation should read naturally in {lang_name}.
 
 Text to translate:
 {text}
 
 Respond with ONLY the translated markdown, no other text."""
+        return self._invoke_text(prompt)
 
+    def _invoke_text(self, prompt: str) -> str | None:
+        """Invoke the configured provider for a plain-text response."""
         settings = SettingsService()
         provider = get_provider(settings.get_provider())
         if not provider.is_available():

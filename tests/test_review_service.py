@@ -1,12 +1,14 @@
 """Tests for the paper review service (journal-club 9-section structure)."""
 
 import json
+import re
 from unittest.mock import MagicMock
 
 import pytest
 
 from arxiv_explorer.core.config import Config
 from arxiv_explorer.core.models import (
+    Language,
     PaperReview,
     ReviewSectionType,
 )
@@ -811,3 +813,64 @@ class TestGenerateReviewMocked:
         review = service.generate_review(sample_paper)
         assert review is not None
         assert len(review.sections) > 0
+
+
+# ── Translation structure (regression: headings must not glue to body) ─
+
+
+class TestTranslationStructure:
+    """Translation must never merge a heading into the following body text."""
+
+    def _adversarial_invoke(self, prompt: str) -> str:
+        """Worst-case translator: collapses all whitespace to single spaces.
+
+        Without heading masking this would glue every heading onto its body and
+        turn whole paragraphs into one giant heading (the reported bug).
+        """
+        if "numbered section heading" in prompt:
+            # Echo the numbered headings verbatim (same count/order/numbering).
+            return prompt.rsplit("\n\n", 1)[-1]
+        text = prompt.split("Text to translate:\n", 1)[1].rsplit("\n\nRespond", 1)[0]
+        return re.sub(r"\s+", " ", text).strip()
+
+    def _build_markdown(self, body_repeat: int) -> str:
+        body = ("body sentence. " * body_repeat).strip()
+        return (
+            "# A Long Paper Title About Black Holes\n\n"
+            "## How It Works\n\n" + body + "\n\n"
+            "## Key Results\n\n" + body + "\n\n"
+            "## Strengths, Limitations & Open Questions\n\n"
+            "**Strengths:**\n\n- one\n- two\n\n"
+            "## Takeaways\n\n- bullet one\n- bullet two\n"
+        )
+
+    @pytest.mark.parametrize("body_repeat", [20, 600])  # single-chunk and multi-chunk
+    def test_headings_stay_on_their_own_line(self, review_service, monkeypatch, body_repeat):
+        monkeypatch.setattr(review_service, "_invoke_text", self._adversarial_invoke)
+        md = self._build_markdown(body_repeat)
+
+        out = review_service._translate_markdown(md, Language.KO)
+        assert out is not None
+
+        heading_lines = [ln for ln in out.split("\n") if ln.startswith("#")]
+        # All four H2s plus the H1 survive as clean, standalone headings.
+        assert len(heading_lines) == 5
+        for ln in heading_lines:
+            assert re.match(r"^#{1,6} \S", ln), f"malformed heading line: {ln!r}"
+            # A glued heading would carry the whole body and be very long.
+            assert len(ln) < 70, f"heading glued to body: {ln!r}"
+        # Body content still present, just not fused into a heading line.
+        assert "body sentence." in out
+
+    def test_short_doc_uses_single_pass(self, review_service, monkeypatch):
+        calls = {"n": 0}
+
+        def counting(prompt: str) -> str:
+            calls["n"] += 1
+            return self._adversarial_invoke(prompt)
+
+        monkeypatch.setattr(review_service, "_invoke_text", counting)
+        out = review_service._translate_markdown(self._build_markdown(20), Language.KO)
+        assert out is not None
+        # One body call + one batched heading call (no per-heading fan-out).
+        assert calls["n"] == 2
