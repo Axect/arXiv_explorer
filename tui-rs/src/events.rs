@@ -838,6 +838,7 @@ pub fn handle_daily_key(app: &mut App, key: KeyCode) {
         KeyCode::Char('f') | KeyCode::Char('F') => {
             if !app.daily.loading {
                 app.daily.loading = true;
+                app.daily.loading_started = Some(std::time::Instant::now());
                 crate::commands::fetch::fetch_daily(
                     app.event_tx.clone(),
                     app.daily.days,

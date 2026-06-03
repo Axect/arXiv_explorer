@@ -242,7 +242,14 @@ fn render_key_hints(f: &mut Frame, app: &App, area: Rect) {
 
 fn render_daily(f: &mut Frame, app: &mut App, area: Rect) {
     if app.daily.loading {
-        let msg = Paragraph::new("Fetching papers…")
+        let elapsed = app.daily.loading_started.map(|t| t.elapsed().as_secs()).unwrap_or(0);
+        const FRAMES: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+        let frame = app
+            .daily
+            .loading_started
+            .map(|t| (t.elapsed().as_millis() / 100) as usize % FRAMES.len())
+            .unwrap_or(0);
+        let msg = Paragraph::new(format!("{} Fetching papers… ({elapsed}s)", FRAMES[frame]))
             .style(Style::default().fg(TEXT).bg(BG))
             .alignment(Alignment::Center);
         f.render_widget(msg, area);

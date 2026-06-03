@@ -61,6 +61,8 @@ pub enum AppEvent {
         scored_papers: Vec<ScoredPaper>,
     },
     SearchResults(Vec<ScoredPaper>),
+    DailyFetchFailed(String),
+    SearchFailed(String),
     JobCompleted {
         job_id: String,
         message: String,
@@ -108,6 +110,7 @@ pub struct DailyState {
     pub selected: usize,
     pub bookmarked: HashSet<String>,
     pub loading: bool,
+    pub loading_started: Option<Instant>, // when the current fetch began
     pub focus_detail: bool, // true = detail panel has focus
     pub detail_scroll: u16, // scroll offset for detail panel
 }
@@ -122,6 +125,7 @@ impl Default for DailyState {
             selected: 0,
             bookmarked: HashSet::new(),
             loading: false,
+            loading_started: None,
             focus_detail: false,
             detail_scroll: 0,
         }
@@ -385,8 +389,18 @@ impl App {
                 self.daily.scored_papers = scored_papers;
                 self.daily.selected = 0;
                 self.daily.loading = false;
+                self.daily.loading_started = None;
                 let total = self.daily.author_papers.len() + self.daily.scored_papers.len();
                 self.push_toast(format!("Fetched {total} papers"), false);
+            }
+            AppEvent::DailyFetchFailed(message) => {
+                self.daily.loading = false;
+                self.daily.loading_started = None;
+                self.push_toast(message, true);
+            }
+            AppEvent::SearchFailed(message) => {
+                self.search.loading = false;
+                self.push_toast(message, true);
             }
             AppEvent::SearchResults(results) => {
                 let n = results.len();

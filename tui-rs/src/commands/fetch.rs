@@ -38,10 +38,7 @@ pub fn fetch_daily(tx: mpsc::UnboundedSender<AppEvent>, days: u32, limit: u32) {
                         });
                     }
                     Err(e) => {
-                        let _ = tx.send(AppEvent::Toast {
-                            message: format!("Parse error: {e}"),
-                            is_error: true,
-                        });
+                        let _ = tx.send(AppEvent::DailyFetchFailed(format!("Parse error: {e}")));
                     }
                 }
             }
@@ -52,16 +49,10 @@ pub fn fetch_daily(tx: mpsc::UnboundedSender<AppEvent>, days: u32, limit: u32) {
                 } else {
                     format!("Fetch failed: {}", stderr.lines().next().unwrap_or("unknown error"))
                 };
-                let _ = tx.send(AppEvent::Toast {
-                    message: msg,
-                    is_error: true,
-                });
+                let _ = tx.send(AppEvent::DailyFetchFailed(msg));
             }
             Err(e) => {
-                let _ = tx.send(AppEvent::Toast {
-                    message: format!("Command error: {e}"),
-                    is_error: true,
-                });
+                let _ = tx.send(AppEvent::DailyFetchFailed(format!("Command error: {e}")));
             }
         }
     });
@@ -83,10 +74,7 @@ pub fn search_papers(tx: mpsc::UnboundedSender<AppEvent>, query: &str) {
                         let _ = tx.send(AppEvent::SearchResults(papers));
                     }
                     Err(e) => {
-                        let _ = tx.send(AppEvent::Toast {
-                            message: format!("Parse error: {e}"),
-                            is_error: true,
-                        });
+                        let _ = tx.send(AppEvent::SearchFailed(format!("Parse error: {e}")));
                     }
                 }
             }
@@ -97,16 +85,10 @@ pub fn search_papers(tx: mpsc::UnboundedSender<AppEvent>, query: &str) {
                 } else {
                     format!("Search failed: {}", stderr.lines().next().unwrap_or("unknown error"))
                 };
-                let _ = tx.send(AppEvent::Toast {
-                    message: msg,
-                    is_error: true,
-                });
+                let _ = tx.send(AppEvent::SearchFailed(msg));
             }
             Err(e) => {
-                let _ = tx.send(AppEvent::Toast {
-                    message: format!("Command error: {e}"),
-                    is_error: true,
-                });
+                let _ = tx.send(AppEvent::SearchFailed(format!("Command error: {e}")));
             }
         }
     });
