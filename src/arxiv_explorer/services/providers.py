@@ -120,6 +120,15 @@ class CodexProvider(AIProvider):
         run_kwargs: dict = {"sandbox": Sandbox.read_only, "cwd": tempfile.gettempdir()}
         if effective_model:
             run_kwargs["model"] = effective_model
+        # These are single-shot text tasks (summaries, translations, review
+        # sections), not agentic coding, so cap reasoning effort low to keep
+        # latency reasonable. Default effort can take minutes per call.
+        try:
+            from openai_codex.api import ReasoningEffort
+
+            run_kwargs["effort"] = ReasoningEffort.low
+        except Exception:
+            pass
 
         try:
             with Codex() as codex:
