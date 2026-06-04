@@ -15,7 +15,17 @@ from pathlib import Path
 # depend on the skill at runtime). Keep the wording; it is load-bearing.
 # ---------------------------------------------------------------------------
 
-_FRIENDLY_STYLE = """OVERALL LOOK:
+_FRIENDLY_STYLE = """SINGLE COHESIVE ILLUSTRATION (read first):
+- This is ONE flat hand-drawn whiteboard illustration. Every box, arrow,
+  diagram, bar, curve, label, number and equation is drawn by the same hand in
+  the same wavy marker stroke, as part of the one drawing.
+- Do NOT paste any text as a separate overlay, floating caption, UI label, text
+  box, or sticker layer on top of the artwork. There are NO compositing layers.
+  All words are hand-lettered directly into the drawing in the same ink and style
+  as the shapes around them. (The image model tends to break exactly the labels
+  it treats as a separate pasted layer, so forbid that explicitly.)
+
+OVERALL LOOK:
 - Clean off-white / warm cream background with a subtle dotted grid.
 - Modern flat-illustration style with a hand-drawn / whiteboard-sketch feel:
   slightly wavy strokes, soft drop shadows, rounded corners on every box.
@@ -24,15 +34,15 @@ _FRIENDLY_STYLE = """OVERALL LOOK:
   No pure black, no neon.
 - Panels flow LEFT to RIGHT, separated by chunky chalk-style arrows with
   little motion lines, like a comic strip. Each panel has a numbered circular
-  badge in its top-left corner.
-- Small playful touches: a tiny domain-relevant sticker doodle in one corner,
-  a sticky note pinned to a panel for a key takeaway. A research-group
-  whiteboard vibe, not childish.
+  badge hand-drawn in its top-left corner.
+- Annotations are short hand-written notes drawn beside the relevant shape,
+  never floating boxes pasted on top. A small domain-relevant doodle drawn into
+  one corner is fine. A research-group whiteboard vibe, not childish.
 
-TYPOGRAPHY:
-- Headlines: bold geometric sans (Inter / Manrope feel).
-- Body labels: friendly humanist sans, slightly looser tracking.
-- Equations rendered cleanly, NOT as garbled math glyphs.
+TYPOGRAPHY (all hand-lettered into the drawing, not a system-font overlay):
+- Headlines: bold marker capitals (Inter / Manrope feel, but hand-drawn).
+- Body labels: friendly hand-written humanist sans, slightly looser tracking.
+- Equations drawn cleanly by hand, NOT garbled, NOT as a pasted text box.
 - All annotations short, never more than 6 words per line.
 
 COMPOSITION:
@@ -42,14 +52,16 @@ COMPOSITION:
   marks, playful but readable.
 - Avoid clutter: lots of breathing room, no overlapping text.
 
-MOOD: a research postdoc's friendly explainer slide for a small group talk:
-clear, warm, a bit playful, but every label is technically correct."""
+MOOD: a research postdoc's friendly hand-drawn explainer slide for a small group
+talk: clear, warm, a bit playful, but every label is technically correct and
+hand-lettered."""
 
 _ENGLISH_GUARD = (
-    "IMPORTANT: every character on the canvas must be readable English. Render "
-    "math with plain ASCII / Greek letters only (alpha beta sigma mu Sigma are "
-    "fine); no decorative non-Latin script anywhere. No watermarks, no fake "
-    "logos, no brand names."
+    "IMPORTANT: every character on the canvas must be readable English, "
+    "hand-lettered as part of the illustration. Render math with plain ASCII / "
+    "Greek letters only (alpha beta sigma mu Sigma are fine); no decorative "
+    "non-Latin script anywhere. No watermarks, no fake logos, no brand names, "
+    "and no separate text/sticker layers pasted over the drawing."
 )
 
 THEMES: dict[str, str] = {

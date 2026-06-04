@@ -544,7 +544,9 @@ Relevant sections:
 
 Walk the group through how the method works, step by step. The figure_brief panels will be drawn as a
 friendly whiteboard infographic (left-to-right flow), so each panel's "content" should be a short
-visual description using boxes, arrows, and labels -- English only, no formulas.
+visual description using boxes, arrows, and labels -- English only, no formulas. Phrase every label as
+a hand-written note drawn beside its shape (not a pasted box or floating caption) so the image model
+integrates it into the single drawing instead of a separate, easily broken text layer.
 
 IMPORTANT: Respond ONLY with a JSON object (no markdown fences, no other text).
 {{
@@ -585,7 +587,9 @@ Results sections:
 
 Summarize the key empirical findings. Cite specific numbers where available. The figure_brief panels
 will be drawn as a friendly whiteboard infographic, so each panel's "content" should be a short visual
-description using bars, arrows, labels, or comparison callouts -- English only.
+description using bars, arrows, labels, or comparison callouts -- English only. Phrase every label as a
+hand-written note drawn beside its shape (not a pasted box or floating caption) so the image model
+integrates it into the single drawing instead of a separate, easily broken text layer.
 
 IMPORTANT: Respond ONLY with a JSON object (no markdown fences, no other text).
 {{
